@@ -31,8 +31,8 @@ from copy import deepcopy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-UPSTREAM_MJCF = ROOT / "vendor" / "orcahand_description" / "v2" / "models" / "mjcf" / "orcahand_right.mjcf"
-UPSTREAM_BODY = ROOT / "vendor" / "orcahand_description" / "v2" / "models" / "mjcf" / "orcahand_right_body.xml"
+UPSTREAM_MJCF = ROOT / "orcahand" / "models" / "mjcf" / "orcahand_right.mjcf"
+UPSTREAM_BODY = ROOT / "orcahand" / "models" / "mjcf" / "orcahand_right_body.xml"
 OUT_MJCF = ROOT / "assets" / "mjcf" / "mjx" / "orcahand_right_mjx.mjcf"
 OUT_SCENE = ROOT / "assets" / "mjcf" / "mjx" / "scene_right_mjx.xml"
 
@@ -40,7 +40,7 @@ OUT_SCENE = ROOT / "assets" / "mjcf" / "mjx" / "scene_right_mjx.xml"
 # v2/models/mjcf/orcahand_right.mjcf has paths like "models/assets/right/X.stl"
 # which resolve to v2/models/assets/right/X.stl. Our MJX MJCF lives at
 # assets/mjcf/mjx/, so the rewrite is three levels up to repo root, then into v2.
-MESH_PATH_REWRITE = "../../../vendor/orcahand_description/v2/{}"
+MESH_PATH_REWRITE = "../../../orcahand/{}"
 
 
 # --- Per-body collision-primitive specifications.

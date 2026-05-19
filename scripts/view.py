@@ -28,9 +28,9 @@ ROOT = Path(__file__).resolve().parent.parent
 
 PRESETS = {
     "mjx": ROOT / "assets" / "mjcf" / "mjx" / "scene_right_mjx.xml",
-    "upstream": ROOT / "vendor" / "orcahand_description" / "v2" / "scene_right.xml",
-    "left": ROOT / "vendor" / "orcahand_description" / "v2" / "scene_left.xml",
-    "combined": ROOT / "vendor" / "orcahand_description" / "v2" / "scene_combined.xml",
+    "upstream": ROOT / "orcahand" / "scene_right.xml",
+    "left": ROOT / "orcahand" / "scene_left.xml",
+    "combined": ROOT / "orcahand" / "scene_combined.xml",
 }
 
 

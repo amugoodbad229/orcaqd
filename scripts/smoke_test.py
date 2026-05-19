@@ -61,7 +61,7 @@ def main() -> int:
 
     banner("OrcaHand v2 load attempts")
     cases = [
-        ("vendor/orcahand_description/v2/scene_right.xml", False),
+        ("orcahand/scene_right.xml", False),
         ("assets/mjcf/mjx/scene_right_mjx.xml", True),
     ]
     results = []
