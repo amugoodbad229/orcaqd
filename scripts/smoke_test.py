@@ -62,7 +62,7 @@ def main() -> int:
     banner("OrcaHand v2 load attempts")
     cases = [
         ("orcahand/scene_right.xml", False),
-        ("assets/mjcf/mjx/scene_right_mjx.xml", True),
+        ("mjx/scene_right_mjx.xml", True),
     ]
     results = []
     for path, expect in cases:

@@ -27,7 +27,7 @@ uv run python scripts/view.py       # interactive viewer
 
 ```
 orcaqd/
-├── assets/mjcf/mjx/               # generated MJX-friendly MJCF
+├── mjx/               # generated MJX-friendly MJCF
 ├── src/envs/                      # MJX env + behavior descriptors
 ├── src/qd_engine/                 # QDax training (Week 3)
 ├── src/agentic_layer/             # VLM routing (Week 7)

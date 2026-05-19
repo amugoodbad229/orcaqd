@@ -37,7 +37,7 @@ uv run python scripts/bench_throughput.py --batch 256 --steps 100
 ```
 orcaqd/
 ├── orcahand/              # OrcaHand v2 model files (MJCF, URDF, STL meshes)
-├── assets/mjcf/mjx/       # generated MJX-friendly MJCF (primitive collisions)
+├── mjx/       # generated MJX-friendly MJCF (primitive collisions)
 ├── src/envs/              # MJX environment + behavior descriptors
 ├── src/qd_engine/         # QDax training (coming)
 ├── scripts/               # build, test, bench, view
