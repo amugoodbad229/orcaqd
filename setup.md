@@ -52,7 +52,7 @@ This installs JAX, MuJoCo, MJX, QDax, Flax, and all other dependencies from `pyp
 The OrcaHand v2 upstream MJCF uses high-poly mesh collisions that MJX-JAX can't handle. We generate a primitive-collision variant (capsules + boxes) that MJX accepts:
 
 ```bash
-uv run python scripts/build_mjx_mjcf.py
+uv run python scripts/build_mjcf.py
 ```
 
 Output:
@@ -74,7 +74,7 @@ This only needs to be run once (or again if you edit `PRIMITIVE_SPECS` in the sc
 ### Smoke test
 
 ```bash
-uv run python scripts/smoke_test.py
+uv run python scripts/check_env.py
 ```
 
 Expected output:
@@ -100,8 +100,8 @@ All tests should pass (33 total: env lifecycle, descriptor math, MJX model prope
 ### Throughput benchmark (GPU only)
 
 ```bash
-uv run python scripts/bench_throughput.py --batch 64 --steps 100
-uv run python scripts/bench_throughput.py --batch 256 --steps 100
+uv run python scripts/bench.py --batch 64 --steps 100
+uv run python scripts/bench.py --batch 256 --steps 100
 ```
 
 Reference numbers on RTX 3060 6GB:
@@ -129,7 +129,7 @@ Controls:
 If the viewer doesn't open (headless server), use the headless renderer instead:
 
 ```bash
-uv run python scripts/render_preview.py    # saves scripts/preview.png
+uv run python scripts/preview.py    # saves scripts/preview.png
 ```
 
 ---
@@ -159,11 +159,11 @@ orcaqd/
 │       └── bd_extractors.py           #   behavior descriptors (b1, b2)
 │
 ├── scripts/                           # utility scripts
-│   ├── build_mjx_mjcf.py             #   generate MJX MJCF from upstream
-│   ├── smoke_test.py                  #   verify JAX + MJX loads
-│   ├── bench_throughput.py            #   batched throughput benchmark
+│   ├── build_mjcf.py             #   generate MJX MJCF from upstream
+│   ├── check_env.py                  #   verify JAX + MJX loads
+│   ├── bench.py            #   batched throughput benchmark
 │   ├── view.py                        #   interactive MuJoCo viewer
-│   └── render_preview.py             #   headless PNG preview
+│   └── preview.py             #   headless PNG preview
 │
 ├── tests/                             # pytest suite
 │   ├── test_mjx_model.py             #   MJX model sanity (6 tests)
@@ -185,11 +185,11 @@ orcaqd/
 
 | Script | What it does | When to run |
 |---|---|---|
-| `scripts/build_mjx_mjcf.py` | Reads upstream OrcaHand MJCF, demotes mesh geoms to visual-only, inserts 12 primitive collision shapes, writes `mjx/` files | Once after clone, or after editing `PRIMITIVE_SPECS` |
-| `scripts/smoke_test.py` | Checks JAX device, loads both upstream (expected fail) and MJX (must pass) models | After install, after any MJCF changes |
-| `scripts/bench_throughput.py` | Batched MJX rollout benchmark. Flags: `--batch`, `--steps`, `--warmup` | To measure GPU performance |
+| `scripts/build_mjcf.py` | Reads upstream OrcaHand MJCF, demotes mesh geoms to visual-only, inserts 12 primitive collision shapes, writes `mjx/` files | Once after clone, or after editing `PRIMITIVE_SPECS` |
+| `scripts/check_env.py` | Checks JAX device, loads both upstream (expected fail) and MJX (must pass) models | After install, after any MJCF changes |
+| `scripts/bench.py` | Batched MJX rollout benchmark. Flags: `--batch`, `--steps`, `--warmup` | To measure GPU performance |
 | `scripts/view.py` | Interactive MuJoCo viewer. Flags: `--upstream`, `--left`, `--combined`, `--mjcf <path>` | Visual inspection |
-| `scripts/render_preview.py` | Renders 3-panel PNG (visual / collision / both) to `scripts/preview.png` | Headless servers, or quick check |
+| `scripts/preview.py` | Renders 3-panel PNG (visual / collision / both) to `scripts/preview.png` | Headless servers, or quick check |
 
 ---
 
@@ -234,9 +234,9 @@ modal volume get orcaqd-artifacts /runs/<TASK_ID>/archive.tar.zst ./
 | Problem | Cause | Fix |
 |---|---|---|
 | `jax.devices()` shows `[CpuDevice]` | Installed without cuda extra | `uv sync --extra cuda --extra dev` |
-| `mjx.put_model()` fails with `plane/mesh margin` error | Loading upstream MJCF directly | Run `scripts/build_mjx_mjcf.py` and use `mjx/scene_right_mjx.xml` |
-| Tests fail with "file not found" | MJX MJCF not generated yet | Run `scripts/build_mjx_mjcf.py` |
-| Viewer window doesn't appear | No display (headless or WSLg issue) | Set `DISPLAY=:0` or use `scripts/render_preview.py` |
+| `mjx.put_model()` fails with `plane/mesh margin` error | Loading upstream MJCF directly | Run `scripts/build_mjcf.py` and use `mjx/scene_right_mjx.xml` |
+| Tests fail with "file not found" | MJX MJCF not generated yet | Run `scripts/build_mjcf.py` |
+| Viewer window doesn't appear | No display (headless or WSLg issue) | Set `DISPLAY=:0` or use `scripts/preview.py` |
 | `uv sync` can't resolve `jax[cuda13]` | Index strategy not set | Confirm `[tool.uv].index-strategy = "unsafe-best-match"` in `pyproject.toml` |
 | Slow `uv sync` (>10 min) | Project on Windows mount (`/mnt/c/...`) | Copy to native Linux filesystem (`~/projects/`) |
 

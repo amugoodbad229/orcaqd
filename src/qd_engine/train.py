@@ -7,7 +7,7 @@ Combines:
 Both halves produce offspring that compete for archive cells.
 
 Usage:
-    uv run python -m src.qd_engine.train_pga_map_elites --config configs/paper1_smoke.yaml
+    uv run python -m src.qd_engine.train --config configs/paper1_smoke.yaml
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from qdax.core.emitters.standard_emitters import MixingEmitter
 from qdax.core.emitters.mutation_operators import isoline_variation
 from qdax.utils.metrics import default_qd_metrics
 
-from src.envs.orcahand_mjx_env import DexHandEnv, EnvConfig
+from src.envs.dex_env import DexHandEnv, EnvConfig
 from src.envs.hand_config import ORCAHAND_RIGHT
 
 

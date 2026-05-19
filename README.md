@@ -9,8 +9,8 @@ git clone https://github.com/amugoodbad229/orcaqd.git
 cd orcaqd
 uv venv --python 3.11
 uv sync --extra cuda --extra dev    # or --extra dev for CPU only
-uv run python scripts/build_mjx_mjcf.py
-uv run python scripts/smoke_test.py
+uv run python scripts/build_mjcf.py
+uv run python scripts/check_env.py
 uv run pytest -v
 uv run python scripts/view.py       # interactive viewer
 ```
@@ -40,8 +40,8 @@ orcaqd/
 
 | Script | Purpose |
 |---|---|
-| `scripts/build_mjx_mjcf.py` | Generate MJX-friendly MJCF from upstream model |
-| `scripts/smoke_test.py` | Verify JAX + MJX loads correctly |
-| `scripts/bench_throughput.py` | Batched MJX rollout benchmark |
+| `scripts/build_mjcf.py` | Generate MJX-friendly MJCF from upstream model |
+| `scripts/check_env.py` | Verify JAX + MJX loads correctly |
+| `scripts/bench.py` | Batched MJX rollout benchmark |
 | `scripts/view.py` | Interactive MuJoCo viewer |
-| `scripts/render_preview.py` | Headless PNG preview |
+| `scripts/preview.py` | Headless PNG preview |

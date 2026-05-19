@@ -9,7 +9,7 @@ import jax
 import jax.numpy as jnp
 import pytest
 
-from src.envs.orcahand_mjx_env import DexHandEnv, EnvConfig
+from src.envs.dex_env import DexHandEnv, EnvConfig
 
 
 @pytest.fixture(scope="module")

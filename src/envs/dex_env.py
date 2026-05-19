@@ -6,7 +6,7 @@ hand that has position-controlled actuators and an opposable thumb.
 Demonstrated on OrcaHand v2 (17 DOF) but designed for 16-24 DOF hands.
 
 Usage:
-    from src.envs.orcahand_mjx_env import DexHandEnv, EnvConfig
+    from src.envs.dex_env import DexHandEnv, EnvConfig
     from src.envs.hand_config import ORCAHAND_RIGHT
 
     cfg = EnvConfig(hand=ORCAHAND_RIGHT)

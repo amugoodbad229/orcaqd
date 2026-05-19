@@ -38,7 +38,7 @@ def train(config: str = "configs/paper1_main.yaml"):
     """Run full PGA-MAP-Elites training."""
     import os, sys
     sys.path.insert(0, "/root")
-    from src.qd_engine.train_pga_map_elites import main as train_main
+    from src.qd_engine.train import main as train_main
     out_dir = f"/artifacts/runs/{os.environ.get('MODAL_TASK_ID', 'local')}"
     os.makedirs(out_dir, exist_ok=True)
     train_main(config_path=f"/root/{config}", out_dir=out_dir)
