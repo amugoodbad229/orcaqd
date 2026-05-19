@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-SCENE = ROOT / "assets" / "mjcf" / "mjx" / "scene_right_mjx.xml"
+SCENE = ROOT / "mjx" / "scene_right_mjx.xml"
 
 
 @pytest.fixture(scope="module")
@@ -26,16 +26,16 @@ def test_mjx_scene_exists():
 
 
 def test_dof_count(model):
-    assert model.nq == 17, f"expected 17 qpos, got {model.nq}"
-    assert model.nv == 17, f"expected 17 qvel, got {model.nv}"
+    assert model.nq == 24, f"expected 24 qpos, got {model.nq}"
+    assert model.nv == 23, f"expected 23 qvel, got {model.nv}"
     assert model.nu == 17, f"expected 17 actuators, got {model.nu}"
 
 
 def test_collision_geom_count(model):
     """Expect 12 primitive collision geoms (palm + 11 phalanges) plus the floor."""
     n_collision = sum(1 for i in range(model.ngeom) if model.geom_contype[i] != 0)
-    assert n_collision == 13, (
-        f"expected 13 collision geoms (12 hand primitives + 1 floor), got {n_collision}"
+    assert n_collision == 14, (
+        f"expected 14 collision geoms (12 hand + 1 object + 1 floor), got {n_collision}"
     )
 
 
@@ -67,4 +67,4 @@ def test_mjx_loads_and_steps(model):
     step_jit = jax.jit(mjx.step)
     d = step_jit(mx, d)
     d.qpos.block_until_ready()
-    assert d.qpos.shape == (17,)
+    assert d.qpos.shape == (24,)

@@ -9,19 +9,19 @@ import jax
 import jax.numpy as jnp
 import pytest
 
-from src.envs.orcahand_mjx_env import OrcaHandEnv, EnvConfig
+from src.envs.orcahand_mjx_env import DexHandEnv, EnvConfig
 
 
 @pytest.fixture(scope="module")
 def env():
-    return OrcaHandEnv(EnvConfig())
+    return DexHandEnv(EnvConfig())
 
 
 def test_env_creates(env):
-    assert env.nq == 17
-    assert env.nv == 17
+    assert env.nq == 24
+    assert env.nv == 23
     assert env.nu == 17
-    assert env.obs_dim == 34  # 17 qpos + 17 qvel (no object yet)
+    assert env.obs_dim == 47  # 17 qpos + 17 qvel (no object yet)
     assert env.action_dim == 17
 
 
