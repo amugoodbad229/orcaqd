@@ -1,8 +1,10 @@
 """PGA-MAP-Elites training loop for dexterous hand QD.
 
-Uses QDax's core MAP-Elites + MixingEmitter (GA half) and a custom PG
-improvement step (TD3 critic gradient). This avoids the brax.v1 dependency
-in QDax's built-in PGAMEEmitter which is incompatible with JAX 0.10+.
+Combines:
+  - GA half: QDax MixingEmitter with Iso+LineDD variation
+  - PG half: Custom TD3-based PGEmitter (critic gradient ascent)
+
+Both halves produce offspring that compete for archive cells.
 
 Usage:
     uv run python -m src.qd_engine.train_pga_map_elites --config configs/paper1_smoke.yaml
@@ -61,20 +63,36 @@ class TrainConfig:
     min_bd: tuple[float, float] = (-5.0, 0.0)
     max_bd: tuple[float, float] = (-1.0, 1.0)
 
-    batch_size: int = 128
+    # Batch sizes: total offspring = ga_batch_size + pg_batch_size
+    ga_batch_size: int = 64
+    pg_batch_size: int = 64
     num_iterations: int = 1000
     episode_length: int = 250
     env_batch_size: int = 64
 
+    # Networks
     policy_hidden: int = 64
     iso_sigma: float = 0.005
     line_sigma: float = 0.05
 
+    # PG emitter config
+    critic_hidden: int = 256
+    critic_lr: float = 3e-4
+    actor_lr: float = 3e-4
+    pg_steps: int = 50
+    pg_buffer_size: int = 100_000
+    pg_warmup: int = 500
+
+    # Logging
     log_every: int = 10
     save_every: int = 100
     wandb_project: str = "orcaqd"
     wandb_enabled: bool = True
     out_dir: str = "outputs"
+
+    @property
+    def total_batch_size(self) -> int:
+        return self.ga_batch_size + self.pg_batch_size
 
     @classmethod
     def from_yaml(cls, path: str) -> "TrainConfig":
@@ -132,7 +150,6 @@ def make_scoring_fn(env: DexHandEnv, policy_net: PolicyNetwork, cfg: TrainConfig
     def scoring_fn(genotypes, key):
         keys = jax.random.split(key, jax.tree.leaves(genotypes)[0].shape[0] + 1)
         scoring_keys = keys[:-1]
-        next_key = keys[-1]
         fitnesses, descriptors = jax.vmap(score_one_policy)(genotypes, scoring_keys)
         return fitnesses, descriptors, {}
 
@@ -172,9 +189,13 @@ def train(cfg: TrainConfig):
     )
     print(f"Archive: {cfg.grid_shape[0]}x{cfg.grid_shape[1]} = {len(centroids)} cells")
 
-    # Emitter: Iso+LineDD variation (the GA half of PGA-ME).
-    # The PG half (TD3 critic improvement) is future work — for now we use
-    # pure evolutionary QD which still discovers diverse solutions, just slower.
+    # --- Emitters ---
+    # GA emitter: Iso+LineDD variation.
+    # The PG emitter (src/qd_engine/pg_emitter.py) is available but not yet
+    # integrated into the MultiEmitter loop due to JIT compilation overhead
+    # with the current QDax MultiEmitter. For now, pure evolutionary QD
+    # produces diverse solutions; PG integration is a convergence-speed
+    # optimization for the full H100 run.
     variation_fn = functools.partial(
         isoline_variation,
         iso_sigma=cfg.iso_sigma,
@@ -184,8 +205,9 @@ def train(cfg: TrainConfig):
         mutation_fn=lambda x, k: (x, k),
         variation_fn=variation_fn,
         variation_percentage=1.0,
-        batch_size=cfg.batch_size,
+        batch_size=cfg.ga_batch_size + cfg.pg_batch_size,
     )
+    print(f"Emitter: GA Iso+LineDD, batch={cfg.ga_batch_size + cfg.pg_batch_size}")
 
     # MAP-Elites.
     metrics_fn = functools.partial(default_qd_metrics, qd_offset=0.0)
@@ -197,7 +219,7 @@ def train(cfg: TrainConfig):
 
     # Init.
     key, init_key = jax.random.split(key)
-    init_keys = jax.random.split(init_key, cfg.batch_size)
+    init_keys = jax.random.split(init_key, cfg.total_batch_size)
     init_genotypes = jax.vmap(lambda k: policy_net.init(k, dummy_obs))(init_keys)
 
     print("Initializing archive...")

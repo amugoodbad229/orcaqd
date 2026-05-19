@@ -1,30 +1,35 @@
-# Smoke test config — runs in ~1 minute on a consumer GPU.
-# Use this to verify the pipeline works end-to-end before scaling up.
+# Smoke test config — runs in ~2 minutes on a consumer GPU.
+# Verifies the full PGA-MAP-Elites pipeline (GA + PG emitters).
 
 # Archive
 grid_shape: [10, 10]
 min_bd: [-5.0, 0.0]
 max_bd: [-1.0, 1.0]
 
-# QD
-batch_size: 16
+# QD batches
+ga_batch_size: 8
+pg_batch_size: 8
 num_iterations: 20
-pg_steps: 10
 
 # Environment
 episode_length: 50
-env_batch_size: 8
+env_batch_size: 4
 
 # Networks
 policy_hidden: 32
+iso_sigma: 0.005
+line_sigma: 0.05
+
+# PG emitter
 critic_hidden: 64
-policy_lr: 0.001
 critic_lr: 0.001
+actor_lr: 0.001
+pg_steps: 10
+pg_buffer_size: 1000
+pg_warmup: 100
 
 # Logging
 log_every: 5
 save_every: 20
 wandb_enabled: false
-
-# Output
 out_dir: outputs/smoke

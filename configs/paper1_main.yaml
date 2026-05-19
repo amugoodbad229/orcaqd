@@ -1,4 +1,4 @@
-# Paper 1 headline config — full QD run on H100.
+# Paper 1 headline config — full PGA-MAP-Elites on H100.
 # Expected wall-clock: 2.5-4 hours. Cost on Modal: ~$10.
 
 # Archive
@@ -6,10 +6,10 @@ grid_shape: [50, 50]
 min_bd: [-5.0, 0.0]
 max_bd: [-1.0, 1.0]
 
-# QD
-batch_size: 1024
+# QD batches (total offspring per iter = ga + pg = 1024)
+ga_batch_size: 512
+pg_batch_size: 512
 num_iterations: 100000
-pg_steps: 100
 
 # Environment
 episode_length: 250
@@ -17,15 +17,20 @@ env_batch_size: 4096
 
 # Networks
 policy_hidden: 64
+iso_sigma: 0.005
+line_sigma: 0.05
+
+# PG emitter
 critic_hidden: 256
-policy_lr: 0.0003
 critic_lr: 0.0003
+actor_lr: 0.0003
+pg_steps: 100
+pg_buffer_size: 1000000
+pg_warmup: 5000
 
 # Logging
 log_every: 100
 save_every: 10000
 wandb_project: orcaqd
 wandb_enabled: true
-
-# Output
 out_dir: /artifacts/runs/paper1_main

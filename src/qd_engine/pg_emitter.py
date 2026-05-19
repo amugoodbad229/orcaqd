@@ -191,9 +191,17 @@ class PGEmitter(Emitter):
     def batch_size(self) -> int:
         return self._batch_size
 
-    def init(self, init_genotypes: Genotype, random_key: RNGKey) -> tuple[PGEmitterState, RNGKey]:
+    def init(
+        self,
+        key: RNGKey,
+        repertoire: MapElitesRepertoire,
+        genotypes: Genotype,
+        fitnesses: jax.Array,
+        descriptors: jax.Array,
+        extra_scores: dict,
+    ) -> PGEmitterState:
         """Initialize the emitter state."""
-        key, critic_key = jax.random.split(random_key)
+        key, critic_key = jax.random.split(key)
 
         # Init critic
         dummy_obs = jnp.zeros(self.obs_dim)
@@ -215,26 +223,25 @@ class PGEmitter(Emitter):
             total_steps=jnp.int32(0),
             key=key,
         )
-        return state, key
+        return state
 
     def emit(
         self,
         repertoire: MapElitesRepertoire,
         emitter_state: PGEmitterState,
-        random_key: RNGKey,
-    ) -> tuple[Genotype, RNGKey]:
+        key: RNGKey,
+    ) -> tuple[Genotype, dict]:
         """Produce offspring by PG-improving parents from the archive."""
-        # Sample parents from the archive (uniform over filled cells).
-        key, sample_key, pg_key = jax.random.split(random_key, 3)
+        key, sample_key, pg_key = jax.random.split(key, 3)
 
         # Get random filled indices.
-        filled_mask = repertoire.fitnesses != -jnp.inf
+        filled_mask = (repertoire.fitnesses != -jnp.inf).ravel()
         n_filled = jnp.sum(filled_mask)
 
         # Sample parent indices (with replacement).
         parent_indices = jax.random.choice(
             sample_key,
-            jnp.arange(repertoire.fitnesses.shape[0]),
+            jnp.arange(filled_mask.shape[0]),
             shape=(self._batch_size,),
             p=filled_mask / jnp.maximum(n_filled, 1),
         )
@@ -242,57 +249,31 @@ class PGEmitter(Emitter):
         # Extract parent genotypes.
         parents = jax.tree.map(lambda x: x[parent_indices], repertoire.genotypes)
 
-        # Apply PG improvement if buffer has enough data.
-        can_train = emitter_state.replay_buffer.size >= self.config.warmup_steps
+        # For now, PG improvement is disabled until the replay buffer is populated.
+        # The buffer gets populated via state_update() with trajectory data.
+        # Until then, the PG emitter just returns copies of parents (like a GA emitter
+        # without mutation — the GA emitter handles the actual variation).
+        # TODO: Wire trajectory collection into state_update to populate the buffer,
+        # then enable the critic-gradient improvement here.
+        offspring = parents
 
-        def pg_improve(parent_params, key):
-            """Apply actor_lr gradient ascent using the critic."""
-            def actor_loss(params):
-                action = self.policy_network.apply(params, obs_batch)
-                q1, _ = self.critic.apply(emitter_state.critic_params, obs_batch, action)
-                return -jnp.mean(q1)
-
-            # Sample a batch of observations from the replay buffer.
-            obs_batch = sample_buffer(
-                emitter_state.replay_buffer, key, self.config.batch_size
-            )[0]
-
-            # One gradient step on the actor.
-            grads = jax.grad(actor_loss)(parent_params)
-            updates, _ = self.actor_optimizer.update(grads, optax.EmptyState())
-            improved = optax.apply_updates(parent_params, updates)
-            return improved
-
-        def no_improve(parent_params, key):
-            return parent_params
-
-        # Apply PG or pass-through based on buffer state.
-        pg_keys = jax.random.split(pg_key, self._batch_size)
-        offspring = jax.lax.cond(
-            can_train,
-            lambda: jax.vmap(pg_improve)(parents, pg_keys),
-            lambda: parents,
-        )
-
-        return offspring, key
+        return offspring, {}
 
     def state_update(
         self,
         emitter_state: PGEmitterState,
-        repertoire: MapElitesRepertoire,
-        genotypes: Genotype,
-        fitnesses: jax.Array,
-        descriptors: jax.Array,
-        extra_scores: dict,
+        repertoire: MapElitesRepertoire | None = None,
+        genotypes: Genotype | None = None,
+        fitnesses: jax.Array | None = None,
+        descriptors: jax.Array | None = None,
+        extra_scores: dict | None = None,
     ) -> PGEmitterState:
         """Update the critic using transitions from the replay buffer.
 
         Note: In a full implementation, transitions would be collected during
         the scoring function and added to the buffer here. For now, this is
-        a placeholder that will be wired up when the scoring function provides
-        trajectory data.
+        a placeholder that increments the step counter.
         """
-        # Update step counter.
         new_state = emitter_state.replace(
             total_steps=emitter_state.total_steps + self._batch_size
         )
