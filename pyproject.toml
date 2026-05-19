@@ -19,6 +19,8 @@ dependencies = [
     "pydantic>=2.7",
     "tqdm>=4.66",
     "brax<0.12",
+    "evosax>=0.2.0",
+    "rejax>=0.1.2",
 ]
 
 [project.optional-dependencies]
