@@ -7,7 +7,7 @@ Combines:
 Both halves produce offspring that compete for archive cells.
 
 Usage:
-    uv run python -m src.qd_engine.train --config configs/paper1_smoke.yaml
+    uv run python -m src.qd_engine.train_pga_map_elites --config configs/paper1_smoke.yaml
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from qdax.core.emitters.standard_emitters import MixingEmitter
 from qdax.core.emitters.mutation_operators import isoline_variation
 from qdax.utils.metrics import default_qd_metrics
 
-from src.envs.dex_env import DexHandEnv, EnvConfig
+from src.envs.orcahand_mjx_env import DexHandEnv, EnvConfig
 from src.envs.hand_config import ORCAHAND_RIGHT
 
 
@@ -86,7 +86,8 @@ class TrainConfig:
     # Logging
     log_every: int = 10
     save_every: int = 100
-    wandb_project: str = "orcaqd"
+    wandb_project: str = "orcaQD"
+    wandb_entity: str = "amugoodbad"
     wandb_enabled: bool = True
     out_dir: str = "outputs"
 
@@ -232,7 +233,11 @@ def train(cfg: TrainConfig):
     if cfg.wandb_enabled:
         try:
             import wandb
-            wandb.init(project=cfg.wandb_project, config=vars(cfg))
+            wandb.init(
+                project=cfg.wandb_project,
+                entity=cfg.wandb_entity,
+                config=vars(cfg),
+            )
         except Exception as e:
             print(f"WandB failed: {e}")
             cfg.wandb_enabled = False

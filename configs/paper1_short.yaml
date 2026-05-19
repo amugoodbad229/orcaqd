@@ -27,9 +27,10 @@ pg_steps: 50
 pg_buffer_size: 10000
 pg_warmup: 1000
 
-# Logging — wandb disabled for short runs to avoid auth issues
+# Logging — wandb enabled, logs to amugoodbad/orcaQD project
 log_every: 10
 save_every: 50
-wandb_project: orcaqd
-wandb_enabled: false
+wandb_project: orcaQD
+wandb_entity: amugoodbad
+wandb_enabled: true
 out_dir: /artifacts/runs/short
