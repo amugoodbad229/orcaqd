@@ -342,6 +342,25 @@ def write_scene() -> None:
         "margin": "0",
     })
 
+
+    # Graspable object: a cube with a free joint.
+    # Primitive geom (box) — fully MJX-JAX compatible.
+    obj_body = ET.SubElement(worldbody, "body", {
+        "name": "object", "pos": "0 0 0.08",
+    })
+    ET.SubElement(obj_body, "freejoint", {"name": "object_joint"})
+    ET.SubElement(obj_body, "geom", {
+        "name": "object_geom",
+        "type": "box",
+        "size": "0.02 0.02 0.02",
+        "mass": "0.1",
+        "rgba": "0.8 0.2 0.2 1",
+        "contype": "1",
+        "conaffinity": "1",
+        "condim": "3",
+        "margin": "0",
+        "friction": "1.0 0.005 0.001",
+    })
     OUT_SCENE.parent.mkdir(parents=True, exist_ok=True)
     prettify(scene)
     ET.ElementTree(scene).write(OUT_SCENE, encoding="utf-8", xml_declaration=True)

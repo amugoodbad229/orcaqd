@@ -9,7 +9,7 @@
 
 ## 0. One-paragraph elevator pitch
 
-Standard deep RL on multi-fingered hands collapses to a single power-wrap grasp. We hypothesize this is a structural artifact of policy-gradient methods on action spaces with vastly unequal solution-volume — call it *manifold-volume gradient starvation*. We sidestep the problem entirely by re-casting dexterous skill discovery as **archive optimization**: instead of a single scalar return, we maintain a 2D grid of elite policies indexed by physically-meaningful behavior descriptors (contact dispersion and inter-digit force allocation). Built on MuJoCo MJX and QDax's `PGAMEEmitter`, OrcaQD discovers an archive of diverse, contact-rich grasping policies on the OrcaHand v2 in a few GPU-hours, with no human demonstrations. We deliver the first openly-reproducible dexterous skill library covering a verifiable fraction of the Cutkosky taxonomy on a 17-DOF anthropomorphic hand.
+Standard deep RL on multi-fingered hands collapses to a single power-wrap grasp. We hypothesize this is a structural artifact of policy-gradient methods on action spaces with vastly unequal solution-volume — call it *manifold-volume gradient starvation*. We sidestep the problem entirely by re-casting dexterous skill discovery as **archive optimization**: instead of a single scalar return, we maintain a 2D grid of elite policies indexed by physically-meaningful behavior descriptors (contact dispersion and inter-digit force allocation). Built on MuJoCo MJX and QDax's `PGAMEEmitter`, OrcaQD discovers an archive of diverse, contact-rich grasping policies on any high-DOF anthropomorphic hand in a few GPU-hours, with no human demonstrations. We demonstrate the framework on the 17-DOF OrcaHand v2 and deliver the first openly-reproducible dexterous skill library covering a verifiable fraction of the Cutkosky taxonomy.
 
 ---
 
@@ -69,9 +69,9 @@ QD has been applied to bipedal locomotion, ant gaits, robotic arms, and continuo
 
 ### 1.4 Contributions
 
-1. **First QD-RL framework for dexterous hand manipulation.** A 17-DOF hand, contact-rich, GPU-parallelized, no demonstrations, no teacher policy.
-2. **Two physically-grounded behavior descriptors** that map cleanly to the Cutkosky taxonomy: (i) trace of the contact-position covariance matrix and (ii) thumb-distal force ratio. Both are computed in-graph from `mjx.Data.contact`.
-3. **An MJX-compatible primitive-collision variant of the OrcaHand v2 MJCF**, released alongside the paper. STL meshes are retained for visualization; collision geometry is reduced to ~14 capsules and 1 palm box, allowing batch sizes ≥4096 on a single H100.
+1. **First QD-RL framework for dexterous hand manipulation.** A general pipeline for any high-DOF anthropomorphic hand (16–24 DOF), contact-rich, GPU-parallelized, no demonstrations, no teacher policy. We demonstrate on the 17-DOF OrcaHand v2 but the method requires only a digit-to-geom mapping to transfer to other hands (Shadow, Allegro, Leap, etc.).
+2. **Two physically-grounded behavior descriptors** that map cleanly to the Cutkosky taxonomy: (i) trace of the contact-position covariance matrix and (ii) thumb-distal force ratio. Both are defined over contact geometry, not hand topology — they apply to any hand with an opposable thumb.
+3. **An automated primitive-collision MJCF generator** that converts any mesh-based hand model into an MJX-JAX-compatible variant by fitting capsules to phalanx bounding boxes. Demonstrated on OrcaHand v2; applicable to any hand with STL meshes.
 4. **Open archive release.** ~2,000 elite policies serialized as Flax PyTrees, indexed by their cell coordinates and tagged with annotated Cutkosky labels. This becomes the foundation for Paper 2.
 
 ---
@@ -114,7 +114,12 @@ QDax [Chalumeau et al. 2024, JMLR] is the canonical JAX QD library (v0.5.1 as of
 
 ### 3.1 OrcaHand v2 environment
 
-**Hand.** OrcaHand v2 right-hand model. 17 actuated joints:
+**Hand.** We demonstrate on the OrcaHand v2 right-hand model (17 actuated DOF) but the framework is parameterized by a `HandConfig` that specifies DOF count, digit-to-geom mapping, and actuator ranges. Any anthropomorphic hand with 16–24 DOF and an opposable thumb can be used by providing a new config. The key requirements are:
+- Position-controlled actuators (the action space is joint-position targets)
+- An identifiable thumb digit (for $b_2$ computation)
+- STL meshes or pre-existing primitive collision geometry
+
+OrcaHand v2 specifics: 17 actuated joints:
 - 1 wrist
 - 4 × {abduction, MCP, PIP} for index, middle, ring, pinky (12)
 - 4 thumb joints (CMC, abduction, MCP, PIP)
@@ -145,13 +150,17 @@ Geometry is hand-fitted using `meshlab` to extract phalanx principal axes, then 
 
 ### 3.2 State and action spaces
 
-**State** $s_t \in \mathbb{R}^{47}$:
-- 17 joint positions $q_t$
-- 17 joint velocities $\dot q_t$
+The state and action dimensions are determined by the hand's DOF count $n_a$ (17 for OrcaHand, 16 for Leap Hand, 20 for Shadow Hand, 24 for Allegro, etc.):
+
+**State** $s_t \in \mathbb{R}^{2 n_a + 13}$:
+- $n_a$ joint positions $q_t$
+- $n_a$ joint velocities $\dot q_t$
 - Object 6D pose: position $p^o_t \in \mathbb{R}^3$, quaternion $\xi^o_t \in \mathbb{R}^4$
 - Object spatial velocity: $v^o_t \in \mathbb{R}^3, \omega^o_t \in \mathbb{R}^3$
 
-**Action** $a_t \in \mathbb{R}^{17}$: per-joint position targets, normalized to $[-1, 1]$ and rescaled to each joint's `ctrlrange`.
+For OrcaHand: $s_t \in \mathbb{R}^{47}$ (17 + 17 + 7 + 6).
+
+**Action** $a_t \in \mathbb{R}^{n_a}$: per-joint position targets, normalized to $[-1, 1]$ and rescaled to each joint's `ctrlrange`.
 
 ### 3.3 Reward function
 
