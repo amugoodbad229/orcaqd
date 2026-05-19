@@ -20,6 +20,10 @@ import modal
 # ---------------------------------------------------------------------------
 # Build the image with uv, using the same pyproject.toml + uv.lock as locally.
 # This guarantees the container has the exact same dependency tree.
+#
+# Modal rule: ALL `run_commands` must come BEFORE any `add_local_*` calls,
+# unless you pass copy=True to add_local_*. We use copy=True for pyproject
+# and uv.lock so we can run `uv sync` after them.
 
 image = (
     modal.Image.from_registry(
@@ -31,24 +35,24 @@ image = (
         "curl -LsSf https://astral.sh/uv/install.sh | sh",
         "ln -sf /root/.local/bin/uv /usr/local/bin/uv",
     )
-    # Copy lockfile + project metadata first so the dep layer caches.
+    # Copy lockfile + project metadata with copy=True so we can run_commands after.
     .add_local_file("pyproject.toml", "/root/pyproject.toml", copy=True)
     .add_local_file("uv.lock", "/root/uv.lock", copy=True)
     .workdir("/root")
     .run_commands(
         "uv sync --frozen --extra cuda --no-install-project"
     )
-    # Then add assets (changes here don't bust the dep cache).
+    .env({
+        "PATH": "/root/.venv/bin:${PATH}",
+        "VIRTUAL_ENV": "/root/.venv",
+        "XLA_FLAGS": "--xla_gpu_triton_gemm_any=true",
+    })
+    # Local source and assets last (no run_commands after these).
+    # These get added to the container at startup, not baked into the image.
     .add_local_dir("orcahand", "/root/orcahand")
     .add_local_dir("mjx", "/root/mjx")
     .add_local_dir("configs", "/root/configs")
     .add_local_python_source("src")
-    .env({
-        "PATH": "/root/.venv/bin:${PATH}",
-        "VIRTUAL_ENV": "/root/.venv",
-        # MJX recommended XLA flag.
-        "XLA_FLAGS": "--xla_gpu_triton_gemm_any=true",
-    })
 )
 
 app = modal.App("orcaqd", image=image)
