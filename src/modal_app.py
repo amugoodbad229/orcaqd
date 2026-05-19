@@ -95,15 +95,65 @@ def smoke():
 
 @app.function(gpu="L4", timeout=15 * 60)
 def bench():
-    """Throughput benchmark on L4 (~$0.10). Measures steps/sec at small batch."""
+    """Throughput benchmark on L4 (~$0.10). Measures steps/sec at batch 256."""
     import sys
+    import time
     sys.path.insert(0, "/root")
-    import subprocess
+
+    import jax
+    import mujoco
+    import mujoco.mjx as mjx
+
     print("=== Throughput benchmark on Modal L4 ===")
-    subprocess.run(
-        ["python", "/root/scripts/bench.py", "--batch", "256", "--steps", "100"],
-        check=True,
-    )
+    print(f"JAX: {jax.__version__}, devices: {jax.devices()}")
+
+    m = mujoco.MjModel.from_xml_path("/root/mjx/scene_right_mjx.xml")
+    mx = mjx.put_model(m)
+    print(f"Model: nq={m.nq}, nv={m.nv}, nu={m.nu}")
+
+    batch_size = 256
+    n_steps = 100
+
+    @jax.jit
+    def vmapped_step(data):
+        return jax.vmap(mjx.step, in_axes=(None, 0))(mx, data)
+
+    @jax.jit
+    def init_batch(seed):
+        import jax.numpy as jnp
+        key = jax.random.PRNGKey(seed)
+        keys = jax.random.split(key, batch_size)
+        def make_one(k):
+            d = mjx.make_data(mx)
+            noise = jax.random.uniform(k, shape=d.qpos.shape, minval=-0.01, maxval=0.01)
+            return d.replace(qpos=d.qpos + noise)
+        return jax.vmap(make_one)(keys)
+
+    print(f"batch={batch_size}, steps={n_steps}")
+    print("Warming up (JIT compile)...")
+    t0 = time.time()
+    d = init_batch(0)
+    for _ in range(n_steps):
+        d = vmapped_step(d)
+    d.qpos.block_until_ready()
+    print(f"First call (compile + run): {time.time() - t0:.1f}s")
+
+    # Timed runs
+    timings = []
+    for i in range(5):
+        t0 = time.time()
+        for _ in range(n_steps):
+            d = vmapped_step(d)
+        d.qpos.block_until_ready()
+        dt = time.time() - t0
+        timings.append(dt)
+        sps = batch_size * n_steps / dt
+        print(f"  iter {i}: {dt*1000:.0f}ms, {sps:,.0f} steps/sec")
+
+    avg = sum(timings) / len(timings)
+    sps = batch_size * n_steps / avg
+    print(f"\nAverage: {avg*1000:.0f}ms, {sps:,.0f} steps/sec total")
+    print("✅ Benchmark complete.")
 
 
 @app.function(
