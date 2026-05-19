@@ -56,6 +56,13 @@ app = modal.App("orcaqd", image=image)
 # Persistent volume for archive checkpoints.
 volume = modal.Volume.from_name("orcaqd-artifacts", create_if_missing=True)
 
+# Wandb secret is optional — only used for the full train run.
+# If you haven't created it, the smoke/bench/train_short functions still work.
+try:
+    wandb_secret = modal.Secret.from_name("wandb")
+except Exception:
+    wandb_secret = None
+
 
 # ---------------------------------------------------------------------------
 # Functions (ordered cheapest → most expensive)
@@ -123,7 +130,7 @@ def train_short():
     gpu="A100-80GB",
     timeout=4 * 60 * 60,
     volumes={"/artifacts": volume},
-    secrets=[modal.Secret.from_name("wandb")],
+    secrets=[wandb_secret] if wandb_secret else [],
 )
 def train(config: str = "configs/paper1_main.yaml"):
     """Full headline training run on A100-80GB (~$8-10 for 3-4 hours)."""
