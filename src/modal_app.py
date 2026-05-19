@@ -158,7 +158,7 @@ def bench():
 
 @app.function(
     gpu="A100-80GB",
-    timeout=15 * 60,
+    timeout=30 * 60,
     volumes={"/artifacts": volume},
 )
 def train_short():

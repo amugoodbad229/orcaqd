@@ -7,12 +7,12 @@ grid_shape: [25, 25]
 min_bd: [-5.0, 0.0]
 max_bd: [-1.0, 1.0]
 
-# QD batches
-ga_batch_size: 256
+# QD batches — keep env_batch_size small to avoid long JIT compile
+ga_batch_size: 128
 pg_batch_size: 0
-num_iterations: 200
+num_iterations: 50
 episode_length: 100
-env_batch_size: 512
+env_batch_size: 64
 
 # Networks
 policy_hidden: 64
@@ -27,9 +27,9 @@ pg_steps: 50
 pg_buffer_size: 10000
 pg_warmup: 1000
 
-# Logging
-log_every: 20
-save_every: 100
+# Logging — wandb disabled for short runs to avoid auth issues
+log_every: 10
+save_every: 50
 wandb_project: orcaqd
-wandb_enabled: true
+wandb_enabled: false
 out_dir: /artifacts/runs/short
