@@ -34,7 +34,7 @@ git init
 
 ```bash
 git submodule add https://github.com/orcahand/orcahand_description.git vendor/orcahand_description
-git submodule update --init --recursive
+# (not needed - model files are included directly)
 ```
 
 This clones the upstream hand model into `vendor/orcahand_description/`. You can now reference `vendor/orcahand_description/v2/scene_right.xml` etc.
@@ -147,7 +147,7 @@ Quality-Diversity RL for discovering diverse dexterous grasping skills on the Or
 
 ```bash
 # Prerequisites: Linux, uv installed, NVIDIA GPU (optional)
-git clone --recurse-submodules <your-repo-url>
+git clone <your-repo-url>
 cd orcaqd
 uv venv --python 3.11
 uv sync --extra cuda --extra dev    # or just --extra dev for CPU
@@ -364,5 +364,4 @@ modal run --detach -m src.modal_app::train --config configs/paper1_main.yaml
 | `mjx.put_model()` fails with plane/mesh error | You're loading the upstream MJCF. Use `assets/mjcf/mjx/scene_right_mjx.xml` |
 | `uv sync` can't resolve `jax[cuda13]` | Confirm `[tool.uv].index-strategy = "unsafe-best-match"` in pyproject.toml |
 | Viewer doesn't open | Set `DISPLAY=:0` (WSLg) or use `scripts/render_preview.py` for headless PNG |
-| Submodule empty after clone | Run `git submodule update --init --recursive` |
 | Tests fail with "file not found" for MJCF | Run `uv run python scripts/build_mjx_mjcf.py` first |

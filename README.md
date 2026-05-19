@@ -5,7 +5,7 @@ Quality-Diversity RL for discovering diverse dexterous grasping skills on the Or
 ## Quick start
 
 ```bash
-git clone --recurse-submodules https://github.com/amugoodbad229/orcaqd.git
+git clone https://github.com/amugoodbad229/orcaqd.git
 cd orcaqd
 uv venv --python 3.11
 uv sync --extra cuda --extra dev    # or --extra dev for CPU only
@@ -27,7 +27,6 @@ uv run python scripts/view.py       # interactive viewer
 
 ```
 orcaqd/
-├── vendor/orcahand_description/   # upstream hand model (git submodule)
 ├── assets/mjcf/mjx/               # generated MJX-friendly MJCF
 ├── src/envs/                      # MJX env + behavior descriptors
 ├── src/qd_engine/                 # QDax training (Week 3)
