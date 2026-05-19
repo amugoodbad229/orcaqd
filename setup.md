@@ -1,25 +1,25 @@
-# OrcaQD Setup Guide
+# OrcaQD Setup
 
-Complete guide to get the project running from a fresh clone.
+Complete guide to get the project running, from a fresh clone to a Modal cloud run.
 
 ---
 
 ## Prerequisites
 
 - **Linux x86_64** (Ubuntu 22.04+, or WSL2 on Windows 11)
-- **NVIDIA GPU** with driver ≥ 525 (optional — CPU-only works for development, GPU needed for training)
+- **NVIDIA GPU** with driver ≥ 525 — optional for development, required for training
 - **Git** configured with your credentials
 - **~10 GB** free disk space
 
-### Install uv (Python package manager)
+### Install uv
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 exec $SHELL
-uv --version   # should print 0.11+
+uv --version    # 0.11+
 ```
 
-### Install system dependencies
+### Install system dependencies (Linux)
 
 ```bash
 sudo apt update
@@ -37,25 +37,19 @@ uv venv --python 3.11
 uv sync --extra cuda --extra dev
 ```
 
-No NVIDIA GPU? Skip the cuda extra:
-
-```bash
-uv sync --extra dev
-```
-
-This installs JAX, MuJoCo, MJX, QDax, Flax, and all other dependencies from `pyproject.toml`.
+**No GPU?** Use `uv sync --extra dev` instead.
 
 ---
 
 ## Generate the MJX model
 
-The OrcaHand v2 upstream MJCF uses high-poly mesh collisions that MJX-JAX can't handle. We generate a primitive-collision variant (capsules + boxes) that MJX accepts:
+The upstream OrcaHand MJCF uses high-poly mesh collisions that MJX-JAX can't handle. We generate a primitive-collision variant (capsules + box) that MJX accepts:
 
 ```bash
 uv run python scripts/build_mjcf.py
 ```
 
-Output:
+Expected output:
 ```
 Reading orcahand/models/mjcf/orcahand_right.mjcf
 Reading orcahand/models/mjcf/orcahand_right_body.xml
@@ -65,37 +59,35 @@ Wrote mjx/orcahand_right_mjx.mjcf
 Wrote mjx/scene_right_mjx.xml
 ```
 
-This only needs to be run once (or again if you edit `PRIMITIVE_SPECS` in the script).
+Run this once after cloning. Re-run only if `PRIMITIVE_SPECS` in the script changes.
 
 ---
 
 ## Verify everything works
 
-### Smoke test
+### Environment check
 
 ```bash
 uv run python scripts/check_env.py
 ```
 
-Expected output:
+Expected:
 ```
-jax     : 0.10.0, backend=gpu
-mujoco  : 3.8.1
-devices : [CudaDevice(id=0)]
-
+jax: 0.10.0, backend=gpu
+mujoco: 3.8.1
 [expected-fail (correct)] orcahand/scene_right.xml
 [OK] mjx/scene_right_mjx.xml
 ```
 
-The "expected-fail" is intentional — the upstream MJCF fails on MJX (that's why we generate the primitive variant). The second line must say OK.
+The "expected-fail" line is intentional — the upstream MJCF fails on MJX (which is exactly why we generate the primitive variant). The second line must say OK.
 
-### Run tests
+### Pytest suite
 
 ```bash
 uv run pytest -v
 ```
 
-All tests should pass (33 total: env lifecycle, descriptor math, MJX model properties, upstream MJCF parsing).
+All 20 tests should pass: descriptor math (10), env lifecycle (4), MJX model properties (6).
 
 ### Throughput benchmark (GPU only)
 
@@ -104,128 +96,153 @@ uv run python scripts/bench.py --batch 64 --steps 100
 uv run python scripts/bench.py --batch 256 --steps 100
 ```
 
-Reference numbers on RTX 3060 6GB:
+Reference (RTX 3060 6GB):
 - batch 64: ~13,000 steps/sec
 - batch 256: ~52,000 steps/sec
 
-On H100 with batch 4096: expected >200,000 steps/sec.
+Expected on A100 80GB at batch 4096: >150,000 steps/sec.
 
 ### Interactive viewer
 
 ```bash
-uv run python scripts/view.py              # MJX variant (shows collision primitives)
-uv run python scripts/view.py --upstream   # original OrcaHand v2 mesh model
-uv run python scripts/view.py --combined   # both hands
+uv run python scripts/view.py              # MJX variant
+uv run python scripts/view.py --upstream   # original mesh model
 ```
 
-Controls:
-- Left-drag: rotate
-- Right-drag: pan
-- Scroll: zoom
-- Press **2**: toggle visual mesh group
-- Press **3**: toggle collision primitive group
-- Esc: close
+Mouse: left-drag rotate, right-drag pan, scroll zoom. Press **2** to toggle visual mesh, **3** for collision primitives, Esc to close.
 
-If the viewer doesn't open (headless server), use the headless renderer instead:
+Headless? Use `scripts/preview.py` for a PNG preview instead.
+
+---
+
+## Run training (local)
+
+Smoke run (~2 minutes on any GPU):
 
 ```bash
-uv run python scripts/preview.py    # saves scripts/preview.png
+uv run python -m src.qd_engine.train --config configs/paper1_smoke.yaml
+```
+
+Expected: archive fills, QD-Score improves from ~-0.6 toward 0.
+
+---
+
+## Run training (Modal cloud)
+
+Modal lets you run the training on rented A100/H100 GPUs without managing infrastructure.
+
+### One-time setup
+
+```bash
+modal token new                                    # OAuth, links to your workspace
+modal secret create wandb WANDB_API_KEY=<your-key> # for logging (optional)
+```
+
+### Cost-conscious workflow
+
+Modal pricing (verified May 2026):
+
+| GPU | Per hour |
+|---|---|
+| L4 | $0.80 |
+| A100-40GB | $2.10 |
+| **A100-80GB** | **$2.50** |
+| H100 | $3.95 |
+
+**With $30 credit, you have:** ~12 hours of A100-80GB time.
+
+Run in this order to minimize cost:
+
+```bash
+# 1. Container build + GPU verification (~$0.02 on L4)
+modal run src/modal_app.py::smoke
+
+# 2. Throughput benchmark on cheap GPU (~$0.10 on L4)
+modal run src/modal_app.py::bench
+
+# 3. Short A100-80GB run (~$0.50, validates training scales)
+modal run src/modal_app.py::train_short
+
+# 4. Full headline run (~$8-10, 3-4 hours, runs detached)
+modal run --detach src/modal_app.py::train
+```
+
+`--detach` lets you close your laptop. WandB tracks progress remotely.
+
+### Pull artifacts back
+
+```bash
+modal volume ls orcaqd-artifacts /runs
+modal volume get orcaqd-artifacts /runs/<TASK_ID>/archive_final.npz ./
 ```
 
 ---
 
-## Project structure
+## Project layout
 
 ```
 orcaqd/
-├── orcahand/                          # OrcaHand v2 model files
-│   ├── models/assets/right/           #   STL meshes (right hand)
-│   ├── models/assets/left/            #   STL meshes (left hand)
-│   ├── models/mjcf/                   #   upstream MJCF + body XML
-│   ├── models/urdf/                   #   URDF files
-│   ├── scene_right.xml                #   scene files
-│   ├── scene_left.xml
-│   └── scene_combined.xml
-│
-├── mjx/                               # generated MJX-friendly MJCF
-│   ├── orcahand_right_mjx.mjcf        #   primitive-collision model
-│   └── scene_right_mjx.xml            #   scene wrapper with floor
-│
-├── src/                               # research code
-│   ├── __init__.py
-│   ├── jax_env.py                     #   XLA performance flags
-│   └── envs/
-│       ├── orcahand_mjx_env.py        #   MJX environment (reset, step, reward)
-│       └── bd_extractors.py           #   behavior descriptors (b1, b2)
-│
-├── scripts/                           # utility scripts
-│   ├── build_mjcf.py             #   generate MJX MJCF from upstream
-│   ├── check_env.py                  #   verify JAX + MJX loads
-│   ├── bench.py            #   batched throughput benchmark
-│   ├── view.py                        #   interactive MuJoCo viewer
-│   └── preview.py             #   headless PNG preview
-│
-├── tests/                             # pytest suite
-│   ├── test_mjx_model.py             #   MJX model sanity (6 tests)
-│   ├── test_bd_extractors.py         #   descriptor math (10 tests)
-│   └── test_env.py                    #   env lifecycle (4 tests)
-│
-├── configs/                           # training configs (coming Week 3)
-├── pyproject.toml                     # dependencies (uv-managed)
-├── uv.lock                            # lockfile
-├── setup.md                           # this file
+├── orcahand/                       # OrcaHand v2 model files (MJCF, URDF, STL meshes)
+│   ├── models/{assets,mjcf,urdf}/
+│   └── scene_{right,left,combined}.xml
+├── mjx/                            # generated MJX-friendly MJCF
+│   ├── orcahand_right_mjx.mjcf
+│   └── scene_right_mjx.xml
+├── src/
+│   ├── jax_env.py                  # XLA performance flags
+│   ├── modal_app.py                # Modal entrypoint
+│   ├── envs/
+│   │   ├── dex_env.py              # hand-agnostic MJX env (DexHandEnv)
+│   │   ├── hand_config.py          # HandConfig (OrcaHand, future Leap/Shadow/Allegro)
+│   │   └── bd_extractors.py        # behavior descriptors (b1, b2)
+│   └── qd_engine/
+│       ├── train.py                # PGA-MAP-Elites training loop
+│       └── pg_emitter.py           # PG emitter (TD3, available for future use)
+├── scripts/
+│   ├── build_mjcf.py               # generate MJX MJCF from upstream
+│   ├── check_env.py                # verify JAX + MJX
+│   ├── bench.py                    # throughput benchmark
+│   ├── view.py                     # interactive MuJoCo viewer
+│   └── preview.py                  # headless PNG preview
+├── tests/                          # 20 tests
+├── configs/
+│   ├── paper1_smoke.yaml           # 1-2 min local test
+│   ├── paper1_short.yaml           # 5-10 min A100 validation
+│   └── paper1_main.yaml            # 3-4 hour headline run
+├── pyproject.toml                  # dependencies (uv-managed)
+├── uv.lock
+├── setup.md                        # this file
 ├── README.md
-├── paper1.md                          # Paper 1 research outline
-└── paper2.md                          # Paper 2 research outline
+├── paper1.md                       # Paper 1 outline (QD-RL)
+└── paper2.md                       # Paper 2 outline (VLM orchestration)
 ```
 
 ---
 
 ## Scripts reference
 
-| Script | What it does | When to run |
+| Script | Purpose | When to run |
 |---|---|---|
-| `scripts/build_mjcf.py` | Reads upstream OrcaHand MJCF, demotes mesh geoms to visual-only, inserts 12 primitive collision shapes, writes `mjx/` files | Once after clone, or after editing `PRIMITIVE_SPECS` |
-| `scripts/check_env.py` | Checks JAX device, loads both upstream (expected fail) and MJX (must pass) models | After install, after any MJCF changes |
-| `scripts/bench.py` | Batched MJX rollout benchmark. Flags: `--batch`, `--steps`, `--warmup` | To measure GPU performance |
-| `scripts/view.py` | Interactive MuJoCo viewer. Flags: `--upstream`, `--left`, `--combined`, `--mjcf <path>` | Visual inspection |
-| `scripts/preview.py` | Renders 3-panel PNG (visual / collision / both) to `scripts/preview.png` | Headless servers, or quick check |
+| `scripts/build_mjcf.py` | Generate MJX MJCF from upstream OrcaHand model | Once after clone |
+| `scripts/check_env.py` | Verify JAX device, load both upstream + MJX MJCF | After install / after MJCF changes |
+| `scripts/bench.py` | Batched MJX rollout throughput. Flags: `--batch`, `--steps` | Measure GPU performance |
+| `scripts/view.py` | Interactive MuJoCo viewer. Flags: `--upstream`, `--left`, `--combined` | Visual inspection |
+| `scripts/preview.py` | 3-panel PNG (visual / collision / both) → `scripts/preview.png` | Headless servers |
+| `src.qd_engine.train` | PGA-MAP-Elites training loop. Flag: `--config <yaml>` | Run training |
 
 ---
 
 ## Adding dependencies
 
-Never `pip install` directly. Always go through uv:
+Always go through uv:
 
 ```bash
-uv add <package>                           # runtime dependency
-uv add --optional dev <package>            # dev-only dependency
-uv sync --extra cuda --extra dev           # re-sync after adding
+uv add <package>                           # runtime dep
+uv add --optional dev <package>            # dev-only dep
+uv sync --extra cuda --extra dev           # re-sync
 ```
 
-Commit both `pyproject.toml` and `uv.lock` together.
-
----
-
-## Modal (cloud GPU runs)
-
-For production training on H100:
-
-```bash
-# One-time setup
-modal token new                                    # authenticate
-modal secret create wandb WANDB_API_KEY=<key>      # for logging
-
-# Smoke test (~$0.10)
-modal run -m src.modal_app::smoke
-
-# Full training run (~$10, 3 hours, runs detached)
-modal run --detach -m src.modal_app::train --config configs/paper1_main.yaml
-
-# Pull results
-modal volume ls orcaqd-artifacts /runs
-modal volume get orcaqd-artifacts /runs/<TASK_ID>/archive.tar.zst ./
-```
+Commit `pyproject.toml` and `uv.lock` together.
 
 ---
 
@@ -234,22 +251,25 @@ modal volume get orcaqd-artifacts /runs/<TASK_ID>/archive.tar.zst ./
 | Problem | Cause | Fix |
 |---|---|---|
 | `jax.devices()` shows `[CpuDevice]` | Installed without cuda extra | `uv sync --extra cuda --extra dev` |
-| `mjx.put_model()` fails with `plane/mesh margin` error | Loading upstream MJCF directly | Run `scripts/build_mjcf.py` and use `mjx/scene_right_mjx.xml` |
+| `mjx.put_model()` fails with `plane/mesh margin` error | Loading upstream MJCF directly | Use `mjx/scene_right_mjx.xml` (run `scripts/build_mjcf.py` first) |
 | Tests fail with "file not found" | MJX MJCF not generated yet | Run `scripts/build_mjcf.py` |
-| Viewer window doesn't appear | No display (headless or WSLg issue) | Set `DISPLAY=:0` or use `scripts/preview.py` |
-| `uv sync` can't resolve `jax[cuda13]` | Index strategy not set | Confirm `[tool.uv].index-strategy = "unsafe-best-match"` in `pyproject.toml` |
-| Slow `uv sync` (>10 min) | Project on Windows mount (`/mnt/c/...`) | Copy to native Linux filesystem (`~/projects/`) |
+| Viewer doesn't open (WSL) | DISPLAY not set | `scripts/view.py` auto-sets it; for headless servers use `scripts/preview.py` |
+| `uv sync` can't resolve `jax[cuda13]` | Index strategy not set | Confirm `[tool.uv].index-strategy = "unsafe-best-match"` in pyproject.toml |
+| Modal container builds every run | `pyproject.toml` or `uv.lock` changed | Avoid editing those between runs; the layer caches when unchanged |
 
 ---
 
-## What's next
+## What's done and what's next
 
-| Week | Deliverable | Status |
-|---|---|---|
-| 1 | MJX-compatible MJCF, smoke test, benchmark | ✅ Done |
-| 2 | Env class, behavior descriptors, tests | ✅ Done |
-| 3 | Add graspable object, wire reward/descriptors, QDax training loop | Next |
-| 4–5 | Full PGA-MAP-Elites run, archive visualization | Planned |
-| 6 | Ablations (vanilla ME, DCRL-ME, descriptor swap) | Planned |
-| 7 | Paper 2: cluster archive, VLM router | Planned |
-| 8 | Paper drafts, figures, submission | Planned |
+| Week | Status |
+|---|---|
+| 1: MJX-compatible MJCF, smoke test, benchmark | ✅ Done |
+| 2: Env class, descriptors, tests | ✅ Done |
+| 3: QDax training loop (GA-only working, PG available) | ✅ Done |
+| 4: Run on Modal A100-80GB, validate at scale | Next |
+| 5: Visualization (archive heatmap, rollout videos) | Planned |
+| 6: Baselines (PPO/SAC via rejax) | Planned |
+| 7: Paper 2 (VLM router, cluster archive) | Planned |
+| 8: Paper drafts, figures | Planned |
+
+See `paper1.md` and `paper2.md` for full research outlines.
