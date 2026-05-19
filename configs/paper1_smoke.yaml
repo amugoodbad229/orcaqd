@@ -1,0 +1,30 @@
+# Smoke test config — runs in ~1 minute on a consumer GPU.
+# Use this to verify the pipeline works end-to-end before scaling up.
+
+# Archive
+grid_shape: [10, 10]
+min_bd: [-5.0, 0.0]
+max_bd: [-1.0, 1.0]
+
+# QD
+batch_size: 16
+num_iterations: 20
+pg_steps: 10
+
+# Environment
+episode_length: 50
+env_batch_size: 8
+
+# Networks
+policy_hidden: 32
+critic_hidden: 64
+policy_lr: 0.001
+critic_lr: 0.001
+
+# Logging
+log_every: 5
+save_every: 20
+wandb_enabled: false
+
+# Output
+out_dir: outputs/smoke
