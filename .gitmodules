@@ -1,0 +1,3 @@
+[submodule "vendor/orcahand_description"]
+	path = vendor/orcahand_description
+	url = https://github.com/orcahand/orcahand_description.git
