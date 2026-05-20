@@ -94,11 +94,13 @@ class ReplayBufferState:
 
 
 def init_replay_buffer(obs_dim: int, act_dim: int, max_size: int) -> ReplayBufferState:
+    # Store in bfloat16 to halve memory usage (~112MB vs ~225MB for 250K transitions).
+    # Upcasting to float32 happens only in sample_buffer, during gradient computation.
     return ReplayBufferState(
-        obs=jnp.zeros((max_size, obs_dim)),
-        action=jnp.zeros((max_size, act_dim)),
-        reward=jnp.zeros(max_size),
-        next_obs=jnp.zeros((max_size, obs_dim)),
+        obs=jnp.zeros((max_size, obs_dim), dtype=jnp.bfloat16),
+        action=jnp.zeros((max_size, act_dim), dtype=jnp.bfloat16),
+        reward=jnp.zeros(max_size, dtype=jnp.bfloat16),
+        next_obs=jnp.zeros((max_size, obs_dim), dtype=jnp.bfloat16),
         done=jnp.zeros(max_size, dtype=bool),
         size=jnp.int32(0),
         ptr=jnp.int32(0),
@@ -113,14 +115,14 @@ def add_to_buffer(
     next_obs: jax.Array,
     done: jax.Array,
 ) -> ReplayBufferState:
-    """Add a batch of transitions to the buffer."""
+    """Add a batch of transitions to the buffer (stored as bfloat16)."""
     batch_size = obs.shape[0]
     indices = (jnp.arange(batch_size) + buf.ptr) % buf.obs.shape[0]
     new_buf = buf.replace(
-        obs=buf.obs.at[indices].set(obs),
-        action=buf.action.at[indices].set(action),
-        reward=buf.reward.at[indices].set(reward),
-        next_obs=buf.next_obs.at[indices].set(next_obs),
+        obs=buf.obs.at[indices].set(obs.astype(jnp.bfloat16)),
+        action=buf.action.at[indices].set(action.astype(jnp.bfloat16)),
+        reward=buf.reward.at[indices].set(reward.astype(jnp.bfloat16)),
+        next_obs=buf.next_obs.at[indices].set(next_obs.astype(jnp.bfloat16)),
         done=buf.done.at[indices].set(done),
         size=jnp.minimum(buf.size + batch_size, buf.obs.shape[0]),
         ptr=(buf.ptr + batch_size) % buf.obs.shape[0],
@@ -129,13 +131,13 @@ def add_to_buffer(
 
 
 def sample_buffer(buf: ReplayBufferState, key: RNGKey, batch_size: int):
-    """Sample a random batch from the buffer."""
+    """Sample a random batch from the buffer, upcasting bfloat16 → float32 for gradients."""
     indices = jax.random.randint(key, (batch_size,), 0, buf.size)
     return (
-        buf.obs[indices],
-        buf.action[indices],
-        buf.reward[indices],
-        buf.next_obs[indices],
+        buf.obs[indices].astype(jnp.float32),
+        buf.action[indices].astype(jnp.float32),
+        buf.reward[indices].astype(jnp.float32),
+        buf.next_obs[indices].astype(jnp.float32),
         buf.done[indices],
     )
 

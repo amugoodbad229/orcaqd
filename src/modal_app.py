@@ -1,10 +1,10 @@
 """Modal entrypoint for OrcaQD training runs.
 
 Cost-conscious workflow (your $30 credit budget):
-  1. modal run -m src.cloud::smoke           # ~$0.02 on L4 - container build + GPU check
-  2. modal run -m src.cloud::bench           # ~$0.05 on L4 - throughput at small batch
-  3. modal run -m src.cloud::train_short     # ~$0.50 on A100-80GB - 5 min training
-  4. modal run --detach -m src.cloud::train  # ~$8 on A100-80GB - full headline run
+  1. modal run -m src.modal_app::smoke           # ~$0.02 on L4 - container build + GPU check
+  2. modal run -m src.modal_app::bench           # ~$0.05 on L4 - throughput at small batch
+  3. modal run -m src.modal_app::train_short     # ~$0.50 on A100-80GB - 5 min training
+  4. modal run --detach -m src.modal_app::train  # ~$8 on A100-80GB - full headline run
 
 Cost reference (Modal pricing, verified May 2026):
   L4:           $0.80/hr   ($0.000222/sec)
@@ -46,6 +46,10 @@ image = (
         "PATH": "/root/.venv/bin:${PATH}",
         "VIRTUAL_ENV": "/root/.venv",
         "XLA_FLAGS": "--xla_gpu_triton_gemm_any=true",
+        # OOM prevention: don't pre-allocate 90% of GPU memory at startup.
+        # Allocate on-demand, capped at 85% to leave headroom for CUDA kernels.
+        "XLA_PYTHON_CLIENT_PREALLOCATE": "false",
+        "XLA_PYTHON_CLIENT_MEM_FRACTION": "0.85",
     })
     # Local source and assets last (no run_commands after these).
     # These get added to the container at startup, not baked into the image.
@@ -206,10 +210,10 @@ def main(action: str = "smoke"):
     """Run an action: smoke, bench, train_short, or train.
 
     Usage:
-        modal run src/cloud.py --action smoke
-        modal run src/cloud.py --action bench
-        modal run src/cloud.py --action train_short
-        modal run --detach src/cloud.py --action train
+        modal run src/modal_app.py --action smoke
+        modal run src/modal_app.py --action bench
+        modal run src/modal_app.py --action train_short
+        modal run --detach src/modal_app.py --action train
     """
     if action == "smoke":
         smoke.remote()

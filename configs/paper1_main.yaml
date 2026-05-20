@@ -13,7 +13,7 @@ num_iterations: 100000
 
 # Environment
 episode_length: 250
-env_batch_size: 4096
+env_batch_size: 16
 
 # Networks
 policy_hidden: 64
@@ -25,7 +25,7 @@ critic_hidden: 256
 critic_lr: 0.0003
 actor_lr: 0.0003
 pg_steps: 100
-pg_buffer_size: 1000000
+pg_buffer_size: 250000
 pg_warmup: 5000
 
 # Logging
