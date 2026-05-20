@@ -1,0 +1,30 @@
+# Medium run on A100-80GB (~$1, 15-20 minutes).
+# Produces a meaningful archive for visualization and analysis.
+
+grid_shape: [25, 25]
+min_bd: [-5.0, 0.0]
+max_bd: [-1.0, 1.0]
+
+ga_batch_size: 256
+pg_batch_size: 0
+num_iterations: 500
+episode_length: 150
+env_batch_size: 128
+
+policy_hidden: 64
+iso_sigma: 0.005
+line_sigma: 0.05
+
+critic_hidden: 256
+critic_lr: 0.0003
+actor_lr: 0.0003
+pg_steps: 50
+pg_buffer_size: 10000
+pg_warmup: 1000
+
+log_every: 50
+save_every: 250
+wandb_project: orcaQD
+wandb_entity: amugoodbad
+wandb_enabled: true
+out_dir: /artifacts/runs/medium
