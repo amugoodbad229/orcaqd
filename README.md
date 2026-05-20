@@ -71,10 +71,10 @@ orcaqd/
 uv run python -m src.qd_engine.train --config configs/paper1_smoke.yaml
 
 # Modal A100-80GB validation (~$0.50, 5-10 min)
-modal run src/modal_app.py::train_short
+modal run src/cloud.py::train_short
 
 # Full headline run (~$8-10, 3-4 hours)
-modal run --detach src/modal_app.py::train
+modal run --detach src/cloud.py::train
 ```
 
 See [setup.md](setup.md#run-training-modal-cloud) for the full Modal workflow with cost guidance.

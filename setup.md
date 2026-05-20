@@ -155,16 +155,16 @@ Run in this order to minimize cost:
 
 ```bash
 # 1. Container build + GPU verification (~$0.02 on L4)
-modal run src/modal_app.py::smoke
+modal run src/cloud.py::smoke
 
 # 2. Throughput benchmark on cheap GPU (~$0.10 on L4)
-modal run src/modal_app.py::bench
+modal run src/cloud.py::bench
 
 # 3. Short A100-80GB run (~$0.50, validates training scales)
-modal run src/modal_app.py::train_short
+modal run src/cloud.py::train_short
 
 # 4. Full headline run (~$8-10, 3-4 hours, runs detached)
-modal run --detach src/modal_app.py::train
+modal run --detach src/cloud.py::train
 ```
 
 `--detach` lets you close your laptop. WandB tracks progress remotely.
