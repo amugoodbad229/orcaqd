@@ -1,0 +1,38 @@
+# Budget run — finishes within $21 Modal credit on A100-80GB.
+# Target: ~3-4 hours total, ~$8-10 cost.
+# Uses high env_batch (2048) for throughput, moderate iterations.
+
+# Archive — 25x25 is enough for paper figures, 50x50 is overkill for v1
+grid_shape: [25, 25]
+min_bd: [-5.0, 0.0]
+max_bd: [-1.0, 1.0]
+
+# QD batches — GA-only (PG is slow and paper says GA is the main driver)
+ga_batch_size: 512
+pg_batch_size: 0
+num_iterations: 5000
+
+# Environment — high batch for throughput
+episode_length: 250
+env_batch_size: 2048
+
+# Networks
+policy_hidden: 64
+iso_sigma: 0.005
+line_sigma: 0.05
+
+# PG emitter (unused but config requires it)
+critic_hidden: 256
+critic_lr: 0.0003
+actor_lr: 0.0003
+pg_steps: 100
+pg_buffer_size: 250000
+pg_warmup: 5000
+
+# Logging
+log_every: 100
+save_every: 1000
+wandb_project: orcaQD
+wandb_entity: amugoodbad
+wandb_enabled: true
+out_dir: /artifacts/runs/budget

@@ -1,10 +1,11 @@
 """Modal entrypoint for OrcaQD training runs.
 
-Cost-conscious workflow (your $30 credit budget):
-  1. modal run -m src.cloud::smoke           # ~$0.02 on L4 - container build + GPU check
-  2. modal run -m src.cloud::bench           # ~$0.05 on L4 - throughput at small batch
-  3. modal run -m src.cloud::train_short     # ~$0.50 on A100-80GB - 5 min training
-  4. modal run --detach -m src.cloud::train  # ~$8 on A100-80GB - full headline run
+Cost-conscious workflow (your $21 credit budget):
+  1. modal run -m src.cloud::smoke              # ~$0.02 on L4 - container build + GPU check
+  2. modal run -m src.cloud::bench              # ~$0.05 on L4 - throughput at small batch
+  3. modal run -m src.cloud::train_short        # ~$0.50 on A100-80GB - 5 min training
+  4. modal run --detach -m src.cloud::train_budget  # ~$8-12 on A100-80GB - budget paper run
+  5. modal run --detach -m src.cloud::train     # ~$10+ on A100-80GB - full headline run
 
 Cost reference (Modal pricing, verified May 2026):
   L4:           $0.80/hr   ($0.000222/sec)
@@ -180,6 +181,30 @@ def train_short():
 
 @app.function(
     gpu="A100-80GB",
+    timeout=6 * 60 * 60,
+    volumes={"/artifacts": volume},
+    secrets=[wandb_secret],
+)
+def train_budget():
+    """Budget-conscious run (~$8-12, 3-4 hours on A100-80GB).
+
+    GA-only (no PG), env_batch=2048 for throughput, 25x25 archive, 5000 iterations.
+    Produces a meaningful archive for paper figures within a $21 credit budget.
+    """
+    import os
+    import sys
+    sys.path.insert(0, "/root")
+    from src.qd_engine.train import main as train_main
+
+    out_dir = f"/artifacts/runs/budget_{os.environ.get('MODAL_TASK_ID', 'local')}"
+    os.makedirs(out_dir, exist_ok=True)
+
+    train_main(config_path="/root/configs/paper1_budget.yaml", out_dir=out_dir)
+    volume.commit()
+
+
+@app.function(
+    gpu="A100-80GB",
     timeout=4 * 60 * 60,
     volumes={"/artifacts": volume},
     secrets=[wandb_secret],
@@ -217,7 +242,9 @@ def main(action: str = "smoke"):
         bench.remote()
     elif action == "train_short":
         train_short.spawn()
+    elif action == "train_budget":
+        train_budget.spawn()
     elif action == "train":
         train.spawn()
     else:
-        raise ValueError(f"Unknown action: {action}. Choose: smoke, bench, train_short, train")
+        raise ValueError(f"Unknown action: {action}. Choose: smoke, bench, train_short, train_budget, train")
