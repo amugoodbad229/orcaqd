@@ -134,8 +134,8 @@ Modal lets you run the training on rented A100/H100 GPUs without managing infras
 ### One-time setup
 
 ```bash
-modal token new                                    # OAuth, links to your workspace
-modal secret create wandb WANDB_API_KEY=<your-key> # for logging (optional)
+uv run modal token new                                    # OAuth, links to your workspace
+uv run modal secret create wandb WANDB_API_KEY=<your-key> # for logging (optional)
 ```
 
 ### Cost-conscious workflow
@@ -155,16 +155,16 @@ Run in this order to minimize cost:
 
 ```bash
 # 1. Container build + GPU verification (~$0.02 on L4)
-modal run src/cloud.py::smoke
+uv run modal run src/cloud.py::smoke
 
 # 2. Throughput benchmark on cheap GPU (~$0.10 on L4)
-modal run src/cloud.py::bench
+uv run modal run src/cloud.py::bench
 
 # 3. Short A100-80GB run (~$0.50, validates training scales)
-modal run src/cloud.py::train_short
+uv run modal run src/cloud.py::train_short
 
 # 4. Full headline run (~$8-10, 3-4 hours, runs detached)
-modal run --detach src/cloud.py::train
+uv run modal run --detach src/cloud.py::train
 ```
 
 `--detach` lets you close your laptop. WandB tracks progress remotely.
@@ -172,8 +172,8 @@ modal run --detach src/cloud.py::train
 ### Pull artifacts back
 
 ```bash
-modal volume ls orcaqd-artifacts /runs
-modal volume get orcaqd-artifacts /runs/<TASK_ID>/archive_final.npz ./
+uv run modal volume ls orcaqd-artifacts /runs
+uv run modal volume get orcaqd-artifacts /runs/<TASK_ID>/archive_final.npz ./
 ```
 
 ---

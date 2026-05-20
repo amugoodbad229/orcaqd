@@ -300,8 +300,8 @@ Action-distribution monitors (KL between the executing policy's action distribut
 
 ### 6.4 Reproducibility checklist
 
-- [ ] `assets/archive_paper1.tar.zst` (the archive checkpoint, released with Paper 1)
-- [ ] `assets/skill_api_doc.md` (the semantized cluster descriptions)
+- [ ] `archive_paper1.tar.zst` (the archive checkpoint, released with Paper 1)
+- [ ] `skill_api_doc.md` (the semantized cluster descriptions)
 - [ ] `configs/paper2_router.yaml` (VLM endpoint, K, monitor thresholds)
 - [ ] VLM prompts versioned in `prompts/` (system, user, schema)
 - [ ] Eval seeds and object meshes for T1, T2, T3 frozen and committed

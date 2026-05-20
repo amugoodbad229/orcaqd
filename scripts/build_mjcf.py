@@ -18,8 +18,8 @@ MJX-friendly MJCF where:
   5. Contact-exclude pairs are copied from upstream.
 
 Outputs:
-    assets/mjcf/orcahand_right_mjx.mjcf      (single self-contained MJCF)
-    assets/mjcf/scene_right_mjx.xml          (scene wrapper with floor)
+    mjx/orcahand_right_mjx.mjcf      (single self-contained MJCF)
+    mjx/scene_right_mjx.xml          (scene wrapper with floor)
 
 Usage:
     uv run python scripts/build_mjx_mjcf.py
@@ -169,7 +169,7 @@ def insert_primitive_collisions(root: ET.Element) -> int:
 
 
 def rewrite_mesh_paths(asset_block: ET.Element) -> None:
-    """Rewrite mesh file= attributes to be reachable from assets/mjcf/."""
+    """Rewrite mesh file= attributes to be reachable from mjx/."""
     for mesh in asset_block.findall("mesh"):
         f = mesh.get("file")
         if f is not None:
