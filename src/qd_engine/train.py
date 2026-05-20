@@ -30,7 +30,7 @@ from qdax.core.emitters.standard_emitters import MixingEmitter
 from qdax.core.emitters.mutation_operators import isoline_variation
 from qdax.utils.metrics import default_qd_metrics
 
-from src.envs.orcahand_mjx_env import DexHandEnv, EnvConfig
+from src.envs.dex_env import DexHandEnv, EnvConfig
 from src.envs.hand_config import ORCAHAND_RIGHT
 
 
