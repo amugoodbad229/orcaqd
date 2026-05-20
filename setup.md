@@ -190,7 +190,7 @@ orcaqd/
 │   └── scene_right_mjx.xml
 ├── src/
 │   ├── jax_env.py                  # XLA performance flags
-│   ├── modal_app.py                # Modal entrypoint
+│   ├── cloud.py                # Modal entrypoint
 │   ├── envs/
 │   │   ├── dex_env.py              # hand-agnostic MJX env (DexHandEnv)
 │   │   ├── hand_config.py          # HandConfig (OrcaHand, future Leap/Shadow/Allegro)
