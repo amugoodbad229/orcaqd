@@ -4,8 +4,8 @@
 
 # Archive (smaller grid for faster iteration)
 grid_shape: [25, 25]
-min_bd: [-5.0, 0.0]
-max_bd: [-1.0, 1.0]
+min_bd: [0.0, 0.0]
+max_bd: [0.1, 1.0]
 
 # QD batches — keep env_batch_size small to avoid long JIT compile
 ga_batch_size: 128

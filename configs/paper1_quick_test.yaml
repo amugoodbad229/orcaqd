@@ -3,8 +3,8 @@
 # 10 iterations only - just enough to verify convergence and timing.
 
 grid_shape: [25, 25]
-min_bd: [-5.0, 0.0]
-max_bd: [-1.0, 1.0]
+min_bd: [0.0, 0.0]
+max_bd: [0.1, 1.0]
 
 # Small batches for fast iteration
 ga_batch_size: 32

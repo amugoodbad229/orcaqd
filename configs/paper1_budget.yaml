@@ -3,8 +3,10 @@
 # Uses PGA-MAP-Elites: GA (Iso+LineDD) + PG (TD3 critic gradient ascent).
 
 grid_shape: [25, 25]
-min_bd: [-5.0, 0.0]
-max_bd: [-1.0, 1.0]
+# BD ranges fixed: b1 (contact dispersion) is always positive (avg squared distance in m²).
+# b2 (thumb force ratio) is [0, 1].
+min_bd: [0.0, 0.0]
+max_bd: [0.1, 1.0]
 
 # QD batches — proven on Modal (2.61s/iter)
 ga_batch_size: 32
