@@ -25,7 +25,7 @@ critic_hidden: 64
 critic_lr: 0.001
 actor_lr: 0.001
 pg_steps: 10
-pg_buffer_size: 1000
+pg_buffer_size: 10000
 pg_warmup: 100
 
 # Logging

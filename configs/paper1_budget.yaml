@@ -1,7 +1,6 @@
 # Budget run — finishes within $21 Modal credit on A100-80GB.
 # Target: ~6-7 hours total, ~$15-17 cost.
-# GA-only (PG emitter is dead code until replay buffer is wired).
-# Uses env_batch=64 for accurate fitness estimates without OOM.
+# Uses PGA-MAP-Elites: GA (Iso+LineDD) + PG (TD3 critic gradient ascent).
 
 # Archive — 25x25 produces meaningful heatmap for paper figures.
 # 50x50 requires ~4x more compute (full run, not budget).
@@ -9,9 +8,9 @@ grid_shape: [25, 25]
 min_bd: [-5.0, 0.0]
 max_bd: [-1.0, 1.0]
 
-# QD batches — GA-only, PG disabled (pg_emitter.py returns parent copies).
+# QD batches — GA + PG emitters
 ga_batch_size: 128
-pg_batch_size: 0
+pg_batch_size: 128
 num_iterations: 700
 
 # Environment — 64 seeds per policy for low-variance fitness estimates.
@@ -23,12 +22,13 @@ policy_hidden: 64
 iso_sigma: 0.005
 line_sigma: 0.05
 
-# PG emitter (unused but config requires it)
+# PG emitter (TD3 critic + policy gradient)
 critic_hidden: 256
 critic_lr: 0.0003
 actor_lr: 0.0003
 pg_steps: 100
-pg_buffer_size: 250000
+critic_steps: 300
+pg_buffer_size: 2000000
 pg_warmup: 5000
 
 # Logging

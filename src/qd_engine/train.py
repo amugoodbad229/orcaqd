@@ -2,9 +2,11 @@
 
 Combines:
   - GA half: QDax MixingEmitter with Iso+LineDD variation
-  - PG half: Custom TD3-based PGEmitter (critic gradient ascent)
+  - PG half: TD3-based PGEmitter using QDax neuroevolution infrastructure
 
-Both halves produce offspring that compete for archive cells.
+Both halves produce offspring that compete for archive cells. The PG emitter
+collects transitions during scoring, trains a shared TD3 critic, and applies
+critic-gradient ascent to parents sampled from the archive.
 
 Usage:
     uv run python -m src.qd_engine.train --config configs/paper1_smoke.yaml
@@ -28,10 +30,13 @@ from qdax.core.map_elites import MAPElites
 from qdax.core.containers.mapelites_repertoire import compute_euclidean_centroids
 from qdax.core.emitters.standard_emitters import MixingEmitter
 from qdax.core.emitters.mutation_operators import isoline_variation
+from qdax.core.emitters.multi_emitter import MultiEmitter
+from qdax.core.neuroevolution.buffers.buffer import QDTransition
 from qdax.utils.metrics import default_qd_metrics
 
 from src.envs.dex_env import DexHandEnv, EnvConfig
 from src.envs.hand_config import ORCAHAND_RIGHT
+from src.qd_engine.pg_emitter import PGEmitter, PGEmitterConfig
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +85,8 @@ class TrainConfig:
     critic_lr: float = 3e-4
     actor_lr: float = 3e-4
     pg_steps: int = 50
-    pg_buffer_size: int = 100_000
+    critic_steps: int = 300
+    pg_buffer_size: int = 250_000
     pg_warmup: int = 500
 
     # Logging
@@ -112,34 +118,64 @@ class TrainConfig:
 
 
 # ---------------------------------------------------------------------------
-# Scoring function
+# Scoring function with transition collection
 # ---------------------------------------------------------------------------
 
 def make_scoring_fn(env: DexHandEnv, policy_net: PolicyNetwork, cfg: TrainConfig):
-    """Create a QDax-compatible scoring function.
+    """Create a QDax-compatible scoring function that also collects transitions.
 
-    Optimized: single flattened vmap over all (genotype × seed) rollouts
-    instead of nested vmap. Reduces XLA compilation graph depth and improves
-    GPU kernel fusion.
+    Returns (fitness, descriptors, {"transitions": QDTransition}) so the PG
+    emitter can train its TD3 critic on real rollout data.
     """
 
     def rollout_one(params, key):
-        """Single policy rollout with one random seed."""
+        """Single policy rollout with one random seed. Returns fitness, descriptors, transitions."""
         state = env.reset(key)
         total_reward = jnp.float32(0.0)
 
+        # Pre-allocate buffers for transition collection
+        obs_buf = jnp.zeros((cfg.episode_length, env.obs_dim))
+        act_buf = jnp.zeros((cfg.episode_length, env.action_dim))
+        rew_buf = jnp.zeros((cfg.episode_length,))
+        nobs_buf = jnp.zeros((cfg.episode_length, env.obs_dim))
+        done_buf = jnp.zeros((cfg.episode_length,))
+
         def step_fn(carry, _):
-            state, total_reward = carry
-            action = policy_net.apply(params, state.obs)
+            state, total_reward, obs_buf, act_buf, rew_buf, nobs_buf, done_buf = carry
+            obs_before = state.obs
+            action = policy_net.apply(params, obs_before)
             state = env.step(state, action)
             total_reward = total_reward + state.reward
-            return (state, total_reward), None
 
-        (final_state, total_reward), _ = jax.lax.scan(
-            step_fn, (state, total_reward), jnp.arange(cfg.episode_length)
+            idx = state.step_count - 1
+            obs_buf = obs_buf.at[idx].set(obs_before)
+            act_buf = act_buf.at[idx].set(action)
+            rew_buf = rew_buf.at[idx].set(state.reward)
+            nobs_buf = nobs_buf.at[idx].set(state.obs)
+            done_buf = done_buf.at[idx].set(state.done.astype(jnp.float32))
+
+            return (state, total_reward, obs_buf, act_buf, rew_buf, nobs_buf, done_buf), None
+
+        (final_state, total_reward, obs_buf, act_buf, rew_buf, nobs_buf, done_buf), _ = jax.lax.scan(
+            step_fn, (state, total_reward, obs_buf, act_buf, rew_buf, nobs_buf, done_buf),
+            jnp.arange(cfg.episode_length)
         )
+
         descriptors = env.get_descriptors(final_state)
-        return total_reward, descriptors
+
+        # Pack transitions into QDTransition
+        transitions = QDTransition(
+            obs=obs_buf,
+            actions=act_buf,
+            rewards=rew_buf,
+            next_obs=nobs_buf,
+            dones=done_buf,
+            truncations=done_buf,
+            state_desc=jnp.zeros((cfg.episode_length, 2)),
+            next_state_desc=jnp.zeros((cfg.episode_length, 2)),
+        )
+
+        return total_reward, descriptors, transitions
 
     @jax.jit
     def scoring_fn(genotypes, key):
@@ -156,16 +192,23 @@ def make_scoring_fn(env: DexHandEnv, policy_net: PolicyNetwork, cfg: TrainConfig
         flat_genotypes = replicate(genotypes)
 
         # Single vmap over all rollouts (flattened nested vmap).
-        rewards, descriptors = jax.vmap(rollout_one)(flat_genotypes, keys)
+        rewards, descriptors, all_transitions = jax.vmap(rollout_one)(flat_genotypes, keys)
 
         # Reshape back to (n_genotypes, env_batch_size) and average.
         rewards = rewards.reshape(n_genotypes, cfg.env_batch_size).mean(axis=1)
         descriptors = descriptors.reshape(n_genotypes, cfg.env_batch_size, -1).mean(axis=1)
 
+        # Flatten all transitions: (n_rollouts, episode, ...) -> (n_rollouts*episode, ...)
+        def flatten_transitions(x):
+            if x.ndim == 2:
+                return x.reshape(total_rollouts * cfg.episode_length)
+            return x.reshape(total_rollouts * cfg.episode_length, x.shape[-1])
+        flat_transitions = jax.tree.map(flatten_transitions, all_transitions)
+
         # b1 in log scale for the archive grid.
         b1_log = jnp.log10(jnp.maximum(descriptors[:, 0], 1e-8))
         final_desc = jnp.stack([b1_log, descriptors[:, 1]], axis=1)
-        return rewards, final_desc, {}
+        return rewards, final_desc, {"transitions": flat_transitions}
 
     return scoring_fn
 
@@ -204,21 +247,46 @@ def train(cfg: TrainConfig):
     print(f"Archive: {cfg.grid_shape[0]}x{cfg.grid_shape[1]} = {len(centroids)} cells")
 
     # --- Emitters ---
-    # GA emitter: Iso+LineDD variation. PG emitter (pg_emitter.py) is available
-    # but disabled by default — set pg_batch_size > 0 to enable.
     total_offspring = cfg.ga_batch_size + cfg.pg_batch_size
     variation_fn = functools.partial(
         isoline_variation,
         iso_sigma=cfg.iso_sigma,
         line_sigma=cfg.line_sigma,
     )
-    emitter = MixingEmitter(
-        mutation_fn=lambda x, k: (x, k),
-        variation_fn=variation_fn,
-        variation_percentage=1.0,
-        batch_size=total_offspring,
-    )
-    print(f"Emitter: GA Iso+LineDD, batch={total_offspring}")
+
+    if cfg.pg_batch_size > 0:
+        # PGA-MAP-Elites: GA + PG emitters
+        ga_emitter = MixingEmitter(
+            mutation_fn=lambda x, k: (x, k),
+            variation_fn=variation_fn,
+            variation_percentage=1.0,
+            batch_size=cfg.ga_batch_size,
+        )
+        pg_emitter = PGEmitter(
+            config=PGEmitterConfig(
+                env_batch_size=cfg.pg_batch_size,
+                num_critic_training_steps=cfg.critic_steps,
+                num_pg_training_steps=cfg.pg_steps,
+                replay_buffer_size=cfg.pg_buffer_size,
+                critic_hidden_layer_size=(cfg.critic_hidden, cfg.critic_hidden),
+                critic_learning_rate=cfg.critic_lr,
+                actor_learning_rate=cfg.actor_lr,
+            ),
+            policy_network=policy_net,
+            obs_dim=env.obs_dim,
+            action_dim=env.action_dim,
+        )
+        emitter = MultiEmitter((ga_emitter, pg_emitter))
+        print(f"Emitter: PGA-MAP-Elites (GA={cfg.ga_batch_size}, PG={cfg.pg_batch_size})")
+    else:
+        # GA-only MAP-Elites
+        emitter = MixingEmitter(
+            mutation_fn=lambda x, k: (x, k),
+            variation_fn=variation_fn,
+            variation_percentage=1.0,
+            batch_size=cfg.ga_batch_size,
+        )
+        print(f"Emitter: GA Iso+LineDD, batch={cfg.ga_batch_size}")
 
     # MAP-Elites.
     metrics_fn = functools.partial(default_qd_metrics, qd_offset=0.0)
