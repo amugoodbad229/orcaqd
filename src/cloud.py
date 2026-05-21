@@ -210,10 +210,10 @@ def train_quick_test():
     secrets=[wandb_secret],
 )
 def train_budget():
-    """Budget-conscious run (~$2.50, ~1 hour on A100-80GB).
+    """Final paper run (~$5.40, ~2.2 hours on A100-80GB).
 
-    PGA-MAP-Elites: GA (Iso+LineDD) + PG (TD3 critic), env_batch=32, 25x25 archive, 1000 iterations.
-    Produces a meaningful archive for paper figures within a $15 credit budget.
+    PGA-MAP-Elites: GA (Iso+LineDD) + PG (TD3 critic), env_batch=32, 25x25 archive, 3000 iterations.
+    Produces paper-ready archive with convergence data.
     Verified timing: 2.61s/iter on Modal A100-80GB.
     """
     import os

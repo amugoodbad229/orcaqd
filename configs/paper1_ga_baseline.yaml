@@ -1,12 +1,12 @@
-# Final paper run — 3000 iterations for convergence
-# Cost: ~$5.40 on A100-80GB (~2.2 hours)
+# GA-only baseline for comparison (3000 iters)
+# Same config as budget but pg_batch_size=0
 
 grid_shape: [25, 25]
 min_bd: [-1.134, -1.0]
 max_bd: [0.611, 1.0]
 
 ga_batch_size: 32
-pg_batch_size: 32
+pg_batch_size: 0
 num_iterations: 3000
 episode_length: 100
 env_batch_size: 32
@@ -28,4 +28,4 @@ save_every: 500
 wandb_project: orcaQD
 wandb_entity: amugoodbad
 wandb_enabled: true
-out_dir: /artifacts/runs/final_paper
+out_dir: /artifacts/runs/ga_only_baseline
