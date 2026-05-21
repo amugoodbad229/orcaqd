@@ -181,16 +181,39 @@ def train_short():
 
 @app.function(
     gpu="A100-80GB",
+    timeout=15 * 60,
+    volumes={"/artifacts": volume},
+    secrets=[wandb_secret],
+)
+def train_quick_test():
+    """Quick PGA-ME validation (~$0.50, 2-3 minutes on A100-80GB).
+
+    10 iterations to verify PG emitter works and measure real timing
+    before committing to the full budget run.
+    """
+    import os
+    import sys
+    sys.path.insert(0, "/root")
+    from src.qd_engine.train import main as train_main
+
+    out_dir = f"/artifacts/runs/quick_test_{os.environ.get('MODAL_TASK_ID', 'local')}"
+    os.makedirs(out_dir, exist_ok=True)
+
+    train_main(config_path="/root/configs/paper1_quick_test.yaml", out_dir=out_dir)
+    volume.commit()
+
+
+@app.function(
+    gpu="A100-80GB",
     timeout=8 * 60 * 60,
     volumes={"/artifacts": volume},
     secrets=[wandb_secret],
 )
 def train_budget():
-    """Budget-conscious run (~$15-17, 6-7 hours on A100-80GB).
+    """Budget-conscious run (~$5-6, ~2 hours on A100-80GB).
 
-    GA-only (PG emitter is dead code), env_batch=64, 25x25 archive, 700 iterations.
-    Produces a meaningful archive for paper figures within a $21 credit budget.
-    Total policy evaluations: 89,600 (143x the 625-cell archive).
+    PGA-MAP-Elites: GA (Iso+LineDD) + PG (TD3 critic), env_batch=32, 25x25 archive, 400 iterations.
+    Produces a meaningful archive for paper figures within a $15 credit budget.
     """
     import os
     import sys
@@ -229,12 +252,14 @@ def train(config: str = "configs/paper1_main.yaml"):
 
 @app.local_entrypoint()
 def main(action: str = "smoke"):
-    """Run an action: smoke, bench, train_short, or train.
+    """Run an action: smoke, bench, train_short, train_quick_test, train_budget, or train.
 
     Usage:
         modal run src/cloud.py --action smoke
         modal run src/cloud.py --action bench
         modal run src/cloud.py --action train_short
+        modal run src/cloud.py --action train_quick_test
+        modal run --detach src/cloud.py --action train_budget
         modal run --detach src/cloud.py --action train
     """
     if action == "smoke":
@@ -243,9 +268,11 @@ def main(action: str = "smoke"):
         bench.remote()
     elif action == "train_short":
         train_short.spawn()
+    elif action == "train_quick_test":
+        train_quick_test.remote()
     elif action == "train_budget":
         train_budget.spawn()
     elif action == "train":
         train.spawn()
     else:
-        raise ValueError(f"Unknown action: {action}. Choose: smoke, bench, train_short, train_budget, train")
+        raise ValueError(f"Unknown action: {action}. Choose: smoke, bench, train_short, train_quick_test, train_budget, train")

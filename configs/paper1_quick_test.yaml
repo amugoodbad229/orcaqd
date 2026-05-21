@@ -1,15 +1,15 @@
-# Budget run — finishes within $15 Modal credit on A100-80GB.
-# Target: ~2 hours total, ~$5-6 cost.
-# Uses PGA-MAP-Elites: GA (Iso+LineDD) + PG (TD3 critic gradient ascent).
+# Quick PGA-ME validation on Modal A100-80GB (~$0.50, 2-3 minutes).
+# Tests that PG emitter works with real transitions on A100.
+# 10 iterations only - just enough to verify convergence and timing.
 
 grid_shape: [25, 25]
 min_bd: [-5.0, 0.0]
 max_bd: [-1.0, 1.0]
 
-# QD batches — reduced for speed (was 64/64)
+# Small batches for fast iteration
 ga_batch_size: 32
 pg_batch_size: 32
-num_iterations: 400
+num_iterations: 10
 episode_length: 100
 env_batch_size: 32
 
@@ -28,9 +28,9 @@ pg_buffer_size: 500000
 pg_warmup: 1000
 
 # Logging
-log_every: 50
-save_every: 100
+log_every: 5
+save_every: 10
 wandb_project: orcaQD
 wandb_entity: amugoodbad
 wandb_enabled: true
-out_dir: /artifacts/runs/budget
+out_dir: /artifacts/runs/quick_test
