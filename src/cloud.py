@@ -210,21 +210,40 @@ def train_quick_test():
     secrets=[wandb_secret],
 )
 def train_budget():
-    """Final paper run (~$5.40, ~2.2 hours on A100-80GB).
-
-    PGA-MAP-Elites: GA (Iso+LineDD) + PG (TD3 critic), env_batch=32, 25x25 archive, 3000 iterations.
-    Produces paper-ready archive with convergence data.
-    Verified timing: 2.61s/iter on Modal A100-80GB.
+    """PGA-ME run — identical to GA baseline except pg_batch_size=32.
+    500 iterations, ~22 min, ~$0.90 on A100-80GB.
     """
     import os
     import sys
     sys.path.insert(0, "/root")
     from src.qd_engine.train import main as train_main
 
-    out_dir = f"/artifacts/runs/budget_{os.environ.get('MODAL_TASK_ID', 'local')}"
+    out_dir = f"/artifacts/runs/pga_me_500_{os.environ.get('MODAL_TASK_ID', 'local')}"
     os.makedirs(out_dir, exist_ok=True)
 
     train_main(config_path="/root/configs/paper1_budget.yaml", out_dir=out_dir)
+    volume.commit()
+
+
+@app.function(
+    gpu="A100-80GB",
+    timeout=8 * 60 * 60,
+    volumes={"/artifacts": volume},
+    secrets=[wandb_secret],
+)
+def train_ga_baseline():
+    """GA-only baseline — identical to PGA-ME except pg_batch_size=0.
+    500 iterations, ~22 min, ~$0.90 on A100-80GB.
+    """
+    import os
+    import sys
+    sys.path.insert(0, "/root")
+    from src.qd_engine.train import main as train_main
+
+    out_dir = f"/artifacts/runs/ga_baseline_500_{os.environ.get('MODAL_TASK_ID', 'local')}"
+    os.makedirs(out_dir, exist_ok=True)
+
+    train_main(config_path="/root/configs/paper1_ga_baseline.yaml", out_dir=out_dir)
     volume.commit()
 
 
@@ -273,6 +292,8 @@ def main(action: str = "smoke"):
         train_quick_test.remote()
     elif action == "train_budget":
         train_budget.spawn()
+    elif action == "train_ga_baseline":
+        train_ga_baseline.spawn()
     elif action == "train":
         train.spawn()
     else:

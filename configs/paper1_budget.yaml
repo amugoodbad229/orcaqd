@@ -1,5 +1,5 @@
-# Final paper run — 3000 iterations for convergence
-# Cost: ~$5.40 on A100-80GB (~2.2 hours)
+# PGA-ME run — identical to GA baseline except pg_batch_size=32
+# Run on Modal A100 for fair comparison
 
 grid_shape: [25, 25]
 min_bd: [-1.134, -1.0]
@@ -7,7 +7,7 @@ max_bd: [0.611, 1.0]
 
 ga_batch_size: 32
 pg_batch_size: 32
-num_iterations: 3000
+num_iterations: 500
 episode_length: 100
 env_batch_size: 32
 
@@ -23,9 +23,9 @@ critic_steps: 100
 pg_buffer_size: 500000
 pg_warmup: 1000
 
-log_every: 100
-save_every: 500
+log_every: 50
+save_every: 100
 wandb_project: orcaQD
 wandb_entity: amugoodbad
 wandb_enabled: true
-out_dir: /artifacts/runs/final_paper
+out_dir: /artifacts/runs/pga_me_500
