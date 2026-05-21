@@ -243,10 +243,28 @@ class DexHandEnv:
         )
 
     def get_descriptors(self, state: EnvState) -> jax.Array:
-        """Extract final (b1, b2) descriptors from accumulated state."""
-        b1 = jnp.where(state.bd_count > 0, state.bd_b1_sum / state.bd_count, 0.0)
-        b2 = jnp.where(state.bd_count > 0, state.bd_b2_sum / state.bd_count, 0.5)
-        return jnp.array([b1, b2])
+        """Extract final behavior descriptors.
+
+        BD1: Wrist yaw angle (qpos[0]) — policies that rotate wrist left vs right.
+             Range approximately [-1.13, 0.61] (actuator limits).
+        BD2: Mean finger PIP joint angle (flexion) — policies that curl vs extend fingers.
+             PIP joints are indices 3, 6, 9, 12, 16 in qpos.
+             Range approximately [-0.26, 1.87] (actuator limits).
+
+        Both descriptors are directly controlled by the policy and produce
+        high diversity even with random initialization.
+        """
+        # BD1: wrist yaw (first joint)
+        bd1 = state.mjx_data.qpos[0]
+
+        # BD2: mean PIP joint angles (finger flexion)
+        # PIP joints: index 3 (p), 6 (r), 9 (m), 12 (i), 16 (t)
+        pip_indices = jnp.array([3, 6, 9, 12, 16], dtype=jnp.int32)
+        pip_angles = state.mjx_data.qpos[pip_indices]
+        # Normalize to [-1, 1] via tanh
+        bd2 = jnp.mean(jnp.tanh(pip_angles * 2.0))
+
+        return jnp.array([bd1, bd2])
 
     def _get_obs(self, data: mjx.Data) -> jax.Array:
         """Extract observation vector."""

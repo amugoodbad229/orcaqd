@@ -205,9 +205,8 @@ def make_scoring_fn(env: DexHandEnv, policy_net: PolicyNetwork, cfg: TrainConfig
             return x.reshape(total_rollouts * cfg.episode_length, x.shape[-1])
         flat_transitions = jax.tree.map(flatten_transitions, all_transitions)
 
-        # b1 in log scale for the archive grid.
-        b1_log = jnp.log10(jnp.maximum(descriptors[:, 0], 1e-8))
-        final_desc = jnp.stack([b1_log, descriptors[:, 1]], axis=1)
+        # BDs are already in linear scale: [lift_height, hand_openness]
+        final_desc = descriptors
         return rewards, final_desc, {"transitions": flat_transitions}
 
     return scoring_fn
