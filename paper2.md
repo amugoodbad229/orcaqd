@@ -2,8 +2,8 @@
 
 > **Status:** Detailed research proposal / paper outline
 > **Target venues (verified, in priority order):** RSS 2027 → CoRL 2027 → ICRA 2028
-> **Prerequisite:** Paper 1's released archive of ~2,000 elite OrcaHand v2 policies
-> **Last verified:** May 18, 2026
+> **Prerequisite:** Paper 1's released QD archive of OrcaHand v2 policies
+> **Last verified:** May 21, 2026
 
 ---
 
@@ -33,7 +33,7 @@ We propose: **let QD discover the primitives, then let the VLM compose them.** T
 
 ### 1.3 Contributions
 
-1. **Archive semantization pipeline** that converts a 2,000-policy QD archive into a human-readable, ~8-entry skill library via clustering and templated description generation.
+1. **Archive semantization pipeline** that converts a QD archive into a human-readable, ~8-entry skill library via clustering and templated description generation.
 2. **VLM-grounded skill router** that takes a scene image and instruction and emits structured JSON (Pydantic-validated) selecting a cluster.
 3. **Closed-loop behavior-descriptor monitor** that compares the achieved $b(\tau)$ during execution against the cell's nominal $\hat b_c$ and triggers bounded re-querying on divergence.
 4. **Empirical evidence on three task families** that QD-derived skill libraries outperform end-to-end VLA controllers on heterogeneous-object grasping, and uniquely enable fragile-object handling and short-horizon tool sequencing.
@@ -72,7 +72,7 @@ GenDexHand [openreview, ICLR 2026] uses LLM/VLM refinement of trajectories gener
 
 ### 3.1 Archive semantization (offline, one-shot)
 
-After Paper 1, we have an archive $\mathcal{A} = \{(\theta_c, \hat b_c, J_c)\}_{c \in \text{filled cells}}$ of ~2,000 elite policies, each with stored fitness, descriptors, and trained Flax parameters.
+After Paper 1, we have an archive $\mathcal{A} = \{(\theta_c, \hat b_c, J_c)\}_{c \in \text{filled cells}}$ of elite policies, each with stored fitness, descriptors, and trained Flax parameters.
 
 #### 3.1.1 Clustering
 
@@ -357,8 +357,8 @@ That is the claim Paper 2 will defend, with task-specific evidence and clean abl
 
 Paper 1 produces and releases:
 - The primitive-collision OrcaHand v2 MJX MJCF
-- The 2,000-policy archive (Flax PyTrees, descriptors, fitnesses)
-- The taxonomy annotations on 100 sampled policies
+- The QD archive (Flax PyTrees, descriptors, fitnesses)
+- The taxonomy annotations on sampled policies
 
 Paper 2 consumes all three. Paper 2 produces:
 - The semantized Skill API Doc

@@ -87,7 +87,7 @@ The "expected-fail" line is intentional — the upstream MJCF fails on MJX (whic
 uv run pytest -v
 ```
 
-All 20 tests should pass: descriptor math (10), env lifecycle (4), MJX model properties (6).
+All 10 tests should pass: env lifecycle (4), MJX model properties (6).
 
 ### Throughput benchmark (GPU only)
 
@@ -155,16 +155,19 @@ Run in this order to minimize cost:
 
 ```bash
 # 1. Container build + GPU verification (~$0.02 on L4)
-uv run modal run src/cloud.py::smoke
+uv run modal run src/cloud.py --action smoke
 
 # 2. Throughput benchmark on cheap GPU (~$0.10 on L4)
-uv run modal run src/cloud.py::bench
+uv run modal run src/cloud.py --action bench
 
 # 3. Short A100-80GB run (~$0.50, validates training scales)
-uv run modal run src/cloud.py::train_short
+uv run modal run src/cloud.py --action train_short
 
-# 4. Full headline run (~$8-10, 3-4 hours, runs detached)
-uv run modal run --detach src/cloud.py::train
+# 4. Budget run (~$15-17, 6-7 hours, produces meaningful archive)
+uv run modal run --detach src/cloud.py --action train_budget
+
+# 5. Full headline run (~$8-10, 3-4 hours, runs detached)
+uv run modal run --detach src/cloud.py --action train
 ```
 
 `--detach` lets you close your laptop. WandB tracks progress remotely.
@@ -183,31 +186,30 @@ uv run modal volume get orcaqd-artifacts /runs/<TASK_ID>/archive_final.npz ./
 ```
 orcaqd/
 ├── orcahand/                       # OrcaHand v2 model files (MJCF, URDF, STL meshes)
-│   ├── models/{assets,mjcf,urdf}/
+│   ├── models/{assets,mjcf}/
 │   └── scene_{right,left,combined}.xml
 ├── mjx/                            # generated MJX-friendly MJCF
 │   ├── orcahand_right_mjx.mjcf
 │   └── scene_right_mjx.xml
 ├── src/
 │   ├── jax_env.py                  # XLA performance flags
-│   ├── cloud.py                # Modal entrypoint
+│   ├── cloud.py                    # Modal entrypoint
 │   ├── envs/
 │   │   ├── dex_env.py              # hand-agnostic MJX env (DexHandEnv)
-│   │   ├── hand_config.py          # HandConfig (OrcaHand, future Leap/Shadow/Allegro)
-│   │   └── bd_extractors.py        # behavior descriptors (b1, b2)
+│   │   └── hand_config.py          # HandConfig (OrcaHand, future Leap/Shadow/Allegro)
 │   └── qd_engine/
-│       ├── train.py                # PGA-MAP-Elites training loop
-│       └── pg_emitter.py           # PG emitter (TD3, available for future use)
+│       └── train.py                # MAP-Elites training loop
 ├── scripts/
 │   ├── build_mjcf.py               # generate MJX MJCF from upstream
 │   ├── check_env.py                # verify JAX + MJX
 │   ├── bench.py                    # throughput benchmark
 │   ├── view.py                     # interactive MuJoCo viewer
 │   └── preview.py                  # headless PNG preview
-├── tests/                          # 20 tests
+├── tests/                          # 10 tests
 ├── configs/
 │   ├── paper1_smoke.yaml           # 1-2 min local test
 │   ├── paper1_short.yaml           # 5-10 min A100 validation
+│   ├── paper1_budget.yaml          # ~$15-17 budget run
 │   └── paper1_main.yaml            # 3-4 hour headline run
 ├── pyproject.toml                  # dependencies (uv-managed)
 ├── uv.lock
@@ -228,7 +230,7 @@ orcaqd/
 | `scripts/bench.py` | Batched MJX rollout throughput. Flags: `--batch`, `--steps` | Measure GPU performance |
 | `scripts/view.py` | Interactive MuJoCo viewer. Flags: `--upstream`, `--left`, `--combined` | Visual inspection |
 | `scripts/preview.py` | 3-panel PNG (visual / collision / both) → `scripts/preview.png` | Headless servers |
-| `src.qd_engine.train` | PGA-MAP-Elites training loop. Flag: `--config <yaml>` | Run training |
+| `src.qd_engine.train` | MAP-Elites training loop. Flag: `--config <yaml>` | Run training |
 
 ---
 
@@ -265,8 +267,8 @@ Commit `pyproject.toml` and `uv.lock` together.
 |---|---|
 | 1: MJX-compatible MJCF, smoke test, benchmark | ✅ Done |
 | 2: Env class, descriptors, tests | ✅ Done |
-| 3: QDax training loop (GA-only working, PG available) | ✅ Done |
-| 4: Run on Modal A100-80GB, validate at scale | Next |
+| 3: QDax training loop (GA-only working) | ✅ Done |
+| 4: Run on Modal A100-80GB, validate at scale | In progress |
 | 5: Visualization (archive heatmap, rollout videos) | Planned |
 | 6: Baselines (PPO/SAC via rejax) | Planned |
 | 7: Paper 2 (VLM router, cluster archive) | Planned |

@@ -7,7 +7,7 @@ Combines:
 Both halves produce offspring that compete for archive cells.
 
 Usage:
-    uv run python -m src.qd_engine.train_pga_map_elites --config configs/paper1_smoke.yaml
+    uv run python -m src.qd_engine.train --config configs/paper1_smoke.yaml
 """
 from __future__ import annotations
 

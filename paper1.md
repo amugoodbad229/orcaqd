@@ -391,6 +391,7 @@ The upstream `v2/models/mjcf/orcahand_right.mjcf` has three quirks worth flaggin
 - [ ] `pyproject.toml` with version-pinned dependencies (`mujoco-mjx==3.8.*`, `qdax==0.5.1`, `jax[cuda12]>=0.4.30`)
 - [ ] `mjx/orcahand_right_mjx.mjcf` (primitive collision variant, released alongside paper)
 - [ ] `configs/paper1_main.yaml` (1e8 steps, 50×50 archive, all hyperparameters)
+- [ ] `configs/paper1_budget.yaml` (budget run, 25×25 archive, GA-only)
 - [ ] `configs/paper1_ablation_*.yaml`
 - [ ] `scripts/reproduce_paper1.sh` (end-to-end on a fresh H100 instance)
 - [ ] Archive checkpoint released as a single `.tar.zst` (~50 MB compressed)

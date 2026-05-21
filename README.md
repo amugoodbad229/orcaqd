@@ -33,21 +33,25 @@ uv run pytest -v
 uv run python -m src.qd_engine.train --config configs/paper1_smoke.yaml
 
 # Cloud A100-80GB (~$0.35, 5 min)
-uv run modal run src/cloud.py::train_short
+uv run modal run src/cloud.py --action train_short
 
-# Full run (~$8, 3-4 hours, detached)
-uv run modal run --detach src/cloud.py::train
+# Budget (~$15-17, 6-7 hours, meaningful archive)
+uv run modal run --detach src/cloud.py --action train_budget
+
+# Full run (~$8-10, 3-4 hours, detached)
+uv run modal run --detach src/cloud.py --action train
 ```
 
 ## Results
 
 Verified on Modal A100-80GB (May 2026):
 
-| Config | Iterations | QD-Score | Coverage | Time |
-|---|---|---|---|---|
-| `paper1_smoke` | 20 | -0.47 | 100% (10×10) | 2 min |
-| `paper1_short` | 50 | -0.15 | 16% (25×25) | 5 min |
-| `paper1_main` | 100K | TBD | TBD | ~3-4 hr |
+| Config | Iterations | Archive | QD-Score | Coverage | Time |
+|---|---|---|---|---|---|
+| `paper1_smoke` | 20 | 10×10 | -0.47 | 100% | 2 min |
+| `paper1_short` | 50 | 25×25 | -0.15 | 16% | 5 min |
+| `paper1_budget` | 700 | 25×25 | TBD | TBD | ~6-7 hr |
+| `paper1_main` | 100K | 50×50 | TBD | TBD | ~3-4 hr |
 
 Throughput: **100,000 steps/sec** at batch 256 on L4.
 
@@ -61,11 +65,11 @@ orcaqd/
 ├── mjx/                # generated MJX-compatible MJCF (primitive collisions)
 ├── src/
 │   ├── cloud.py        # cloud GPU runner (Modal)
-│   ├── envs/           # DexHandEnv, HandConfig, behavior descriptors
-│   └── qd_engine/      # MAP-Elites training loop, PG emitter
+│   ├── envs/           # DexHandEnv, HandConfig
+│   └── qd_engine/      # MAP-Elites training loop
 ├── scripts/            # build_mjcf, check_env, bench, view, preview
-├── tests/              # 20 tests
-├── configs/            # training configs (smoke / short / main)
+├── tests/              # 10 tests
+├── configs/            # training configs (smoke / short / budget / main)
 ├── paper1.md           # Paper 1: QD-RL for dexterous manipulation
 ├── paper2.md           # Paper 2: VLM skill orchestration over QD archives
 └── setup.md            # full setup and usage guide

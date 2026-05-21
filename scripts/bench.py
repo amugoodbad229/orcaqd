@@ -23,7 +23,7 @@ import mujoco
 import mujoco.mjx as mjx
 
 ROOT = Path(__file__).resolve().parent.parent
-SCENE = str(ROOT / "assets" / "mjcf" / "mjx" / "scene_right_mjx.xml")
+SCENE = str(ROOT / "mjx" / "scene_right_mjx.xml")
 
 
 def main() -> None:
