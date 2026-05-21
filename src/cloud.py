@@ -181,15 +181,16 @@ def train_short():
 
 @app.function(
     gpu="A100-80GB",
-    timeout=6 * 60 * 60,
+    timeout=8 * 60 * 60,
     volumes={"/artifacts": volume},
     secrets=[wandb_secret],
 )
 def train_budget():
-    """Budget-conscious run (~$8-12, 3-4 hours on A100-80GB).
+    """Budget-conscious run (~$15-17, 6-7 hours on A100-80GB).
 
-    GA-only (no PG), env_batch=2048 for throughput, 25x25 archive, 5000 iterations.
+    GA-only (PG emitter is dead code), env_batch=64, 25x25 archive, 700 iterations.
     Produces a meaningful archive for paper figures within a $21 credit budget.
+    Total policy evaluations: 89,600 (143x the 625-cell archive).
     """
     import os
     import sys

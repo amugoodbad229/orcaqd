@@ -105,6 +105,9 @@ class DexHandEnv:
         self.mj_model = mujoco.MjModel.from_xml_path(self.cfg.scene_path)
         self.mjx_model = mjx.put_model(self.mj_model)
 
+        # Pre-compute default MJX data template (avoids reallocation per reset).
+        self._default_data = mjx.make_data(self.mjx_model)
+
         self.nq = self.mj_model.nq
         self.nv = self.mj_model.nv
         self.nu = self.mj_model.nu
@@ -162,16 +165,15 @@ class DexHandEnv:
     @functools.partial(jax.jit, static_argnums=(0,))
     def reset(self, key: jax.Array) -> EnvState:
         """Reset to a new initial state."""
-        data = mjx.make_data(self.mjx_model)
-
         # Small random perturbation to hand joints.
         key, subkey = jax.random.split(key)
         n_hand_q = self.cfg.hand.n_actuators
         qpos_noise = jax.random.uniform(
             subkey, shape=(n_hand_q,), minval=-0.01, maxval=0.01
         )
-        new_qpos = data.qpos.at[:n_hand_q].add(qpos_noise)
-        data = data.replace(qpos=new_qpos)
+        # Use pre-computed default data template (avoids mjx.make_data allocation).
+        new_qpos = self._default_data.qpos.at[:n_hand_q].add(qpos_noise)
+        data = self._default_data.replace(qpos=new_qpos)
 
         # Forward to compute derived quantities.
         data = mjx.forward(self.mjx_model, data)

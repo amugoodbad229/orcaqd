@@ -116,43 +116,56 @@ class TrainConfig:
 # ---------------------------------------------------------------------------
 
 def make_scoring_fn(env: DexHandEnv, policy_net: PolicyNetwork, cfg: TrainConfig):
-    """Create a QDax-compatible scoring function."""
+    """Create a QDax-compatible scoring function.
 
-    def score_one_policy(params, key):
-        keys = jax.random.split(key, cfg.env_batch_size)
+    Optimized: single flattened vmap over all (genotype × seed) rollouts
+    instead of nested vmap. Reduces XLA compilation graph depth and improves
+    GPU kernel fusion.
+    """
 
-        def rollout_one_seed(seed_key):
-            state = env.reset(seed_key)
-            total_reward = jnp.float32(0.0)
+    def rollout_one(params, key):
+        """Single policy rollout with one random seed."""
+        state = env.reset(key)
+        total_reward = jnp.float32(0.0)
 
-            def step_fn(carry, _):
-                state, total_reward = carry
-                action = policy_net.apply(params, state.obs)
-                state = env.step(state, action)
-                total_reward = total_reward + state.reward
-                return (state, total_reward), None
+        def step_fn(carry, _):
+            state, total_reward = carry
+            action = policy_net.apply(params, state.obs)
+            state = env.step(state, action)
+            total_reward = total_reward + state.reward
+            return (state, total_reward), None
 
-            (final_state, total_reward), _ = jax.lax.scan(
-                step_fn, (state, total_reward), jnp.arange(cfg.episode_length)
-            )
-            descriptors = env.get_descriptors(final_state)
-            return total_reward, descriptors
-
-        rewards, descriptors = jax.vmap(rollout_one_seed)(keys)
-        fitness = jnp.mean(rewards)
-        mean_desc = jnp.mean(descriptors, axis=0)
-
-        # b1 in log scale for the archive grid.
-        b1_log = jnp.log10(jnp.maximum(mean_desc[0], 1e-8))
-        final_desc = jnp.array([b1_log, mean_desc[1]])
-        return fitness, final_desc
+        (final_state, total_reward), _ = jax.lax.scan(
+            step_fn, (state, total_reward), jnp.arange(cfg.episode_length)
+        )
+        descriptors = env.get_descriptors(final_state)
+        return total_reward, descriptors
 
     @jax.jit
     def scoring_fn(genotypes, key):
-        keys = jax.random.split(key, jax.tree.leaves(genotypes)[0].shape[0] + 1)
-        scoring_keys = keys[:-1]
-        fitnesses, descriptors = jax.vmap(score_one_policy)(genotypes, scoring_keys)
-        return fitnesses, descriptors, {}
+        n_genotypes = jax.tree.leaves(genotypes)[0].shape[0]
+        total_rollouts = n_genotypes * cfg.env_batch_size
+        keys = jax.random.split(key, total_rollouts)
+
+        # Replicate each genotype env_batch_size times for parallel evaluation.
+        def replicate(tree):
+            return jax.tree.map(
+                lambda x: jnp.repeat(x, cfg.env_batch_size, axis=0),
+                tree
+            )
+        flat_genotypes = replicate(genotypes)
+
+        # Single vmap over all rollouts (flattened nested vmap).
+        rewards, descriptors = jax.vmap(rollout_one)(flat_genotypes, keys)
+
+        # Reshape back to (n_genotypes, env_batch_size) and average.
+        rewards = rewards.reshape(n_genotypes, cfg.env_batch_size).mean(axis=1)
+        descriptors = descriptors.reshape(n_genotypes, cfg.env_batch_size, -1).mean(axis=1)
+
+        # b1 in log scale for the archive grid.
+        b1_log = jnp.log10(jnp.maximum(descriptors[:, 0], 1e-8))
+        final_desc = jnp.stack([b1_log, descriptors[:, 1]], axis=1)
+        return rewards, final_desc, {}
 
     return scoring_fn
 
@@ -191,12 +204,9 @@ def train(cfg: TrainConfig):
     print(f"Archive: {cfg.grid_shape[0]}x{cfg.grid_shape[1]} = {len(centroids)} cells")
 
     # --- Emitters ---
-    # GA emitter: Iso+LineDD variation.
-    # The PG emitter (src/qd_engine/pg_emitter.py) is available but not yet
-    # integrated into the MultiEmitter loop due to JIT compilation overhead
-    # with the current QDax MultiEmitter. For now, pure evolutionary QD
-    # produces diverse solutions; PG integration is a convergence-speed
-    # optimization for the full H100 run.
+    # GA emitter: Iso+LineDD variation. PG emitter (pg_emitter.py) is available
+    # but disabled by default — set pg_batch_size > 0 to enable.
+    total_offspring = cfg.ga_batch_size + cfg.pg_batch_size
     variation_fn = functools.partial(
         isoline_variation,
         iso_sigma=cfg.iso_sigma,
@@ -206,9 +216,9 @@ def train(cfg: TrainConfig):
         mutation_fn=lambda x, k: (x, k),
         variation_fn=variation_fn,
         variation_percentage=1.0,
-        batch_size=cfg.ga_batch_size + cfg.pg_batch_size,
+        batch_size=total_offspring,
     )
-    print(f"Emitter: GA Iso+LineDD, batch={cfg.ga_batch_size + cfg.pg_batch_size}")
+    print(f"Emitter: GA Iso+LineDD, batch={total_offspring}")
 
     # MAP-Elites.
     metrics_fn = functools.partial(default_qd_metrics, qd_offset=0.0)
