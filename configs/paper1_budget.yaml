@@ -3,9 +3,10 @@
 # Uses PGA-MAP-Elites: GA (Iso+LineDD) + PG (TD3 critic gradient ascent).
 
 grid_shape: [25, 25]
-# BD1: wrist yaw [-1.2, 0.7], BD2: mean PIP flexion tanh [-1, 1]
-min_bd: [-1.2, -1.0]
-max_bd: [0.7, 1.0]
+# BD1: wrist yaw (physical limits: -1.134 to 0.611 rad, OrcaHand specs)
+# BD2: mean PIP flexion tanh-normalized [-1, 1]
+min_bd: [-1.134, -1.0]
+max_bd: [0.611, 1.0]
 
 # QD batches — proven on Modal (2.61s/iter)
 ga_batch_size: 32
