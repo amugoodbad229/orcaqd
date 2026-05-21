@@ -1,15 +1,15 @@
 # Budget run — finishes within $15 Modal credit on A100-80GB.
-# Target: ~2 hours total, ~$5-6 cost.
+# Target: ~1 hour total, ~$2.50 cost.
 # Uses PGA-MAP-Elites: GA (Iso+LineDD) + PG (TD3 critic gradient ascent).
 
 grid_shape: [25, 25]
 min_bd: [-5.0, 0.0]
 max_bd: [-1.0, 1.0]
 
-# QD batches — reduced for speed (was 64/64)
+# QD batches — proven on Modal (2.61s/iter)
 ga_batch_size: 32
 pg_batch_size: 32
-num_iterations: 400
+num_iterations: 1000
 episode_length: 100
 env_batch_size: 32
 
